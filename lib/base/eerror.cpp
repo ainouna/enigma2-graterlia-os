@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <syslog.h>
 
 #include <string>
 
@@ -93,7 +94,9 @@ void eFatal(const char* fmt, ...)
 	{
 		singleLock s(DebugLock);
 		logOutput(lvlFatal, "FATAL: " + std::string(buf) + "\n");
-		fprintf(stderr, "FATAL: %s\n",buf );
+		openlog("enigma2", 0, LOG_USER);
+		syslog(LOG_CRIT, "FATAL: %s\n",buf);
+		closelog();
 	}
 	bsodFatal("enigma2");
 }
@@ -109,7 +112,11 @@ void eDebug(const char* fmt, ...)
 	singleLock s(DebugLock);
 	logOutput(lvlDebug, std::string(buf) + "\n");
 	if (logOutputConsole)
-		fprintf(stderr, "%s\n", buf);
+	{
+	    openlog("enigma2", 0, LOG_USER);
+	    syslog(LOG_NOTICE, "%s\n",buf);
+	    closelog();
+	}
 }
 
 void eDebugNoNewLine(const char* fmt, ...)
@@ -122,7 +129,12 @@ void eDebugNoNewLine(const char* fmt, ...)
 	singleLock s(DebugLock);
 	logOutput(lvlDebug, buf);
 	if (logOutputConsole)
-		fprintf(stderr, "%s", buf);
+	{
+	    openlog("enigma2", 0, LOG_USER);
+	    syslog(LOG_NOTICE, "%s",buf);
+	    closelog();
+	}
+
 }
 
 void eWarning(const char* fmt, ...)
@@ -135,7 +147,11 @@ void eWarning(const char* fmt, ...)
 	singleLock s(DebugLock);
 	logOutput(lvlWarning, std::string(buf) + "\n");
 	if (logOutputConsole)
-		fprintf(stderr, "%s\n", buf);
+	{
+	    openlog("enigma2", 0, LOG_USER);
+	    syslog(LOG_WARNING, "%s\n",buf);
+	    closelog();
+	}
 }
 #endif // DEBUG
 

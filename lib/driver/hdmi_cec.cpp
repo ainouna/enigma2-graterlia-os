@@ -239,7 +239,7 @@ void eHdmiCEC::hdmiEvent(int what)
 			{
 				eDebugNoNewLine(" %02X", rxmessage.data[i]);
 			}
-			eDebug(" ");
+			eDebug(" -> %02X ", rxmessage.address);
 			switch (rxmessage.data[0])
 			{
 				case 0x44: /* key pressed */
@@ -306,6 +306,9 @@ long eHdmiCEC::translateKey(unsigned char code)
 		case 0x31:
 			key = 0x193;
 			break;
+		case 0x40:
+			key = 0x74;
+			break;
 		case 0x44:
 			key = 0xcf;
 			break;
@@ -358,7 +361,7 @@ long eHdmiCEC::translateKey(unsigned char code)
 			key = 0x6c;
 			break;
 		case 0x0d:
-			key = 0xae;
+			key = 0x66;
 			break;
 		case 0x72:
 			key = 0x18e;
@@ -388,7 +391,7 @@ void eHdmiCEC::sendMessage(struct cec_message &message)
 		{
 			eDebugNoNewLine(" %02X", message.data[i]);
 		}
-		eDebug(" ");
+		eDebug(" -> %02X ", message.address);
 #ifdef DREAMBOX
 		message.flag = 1;
 		::ioctl(hdmiFd, 3, &message);
