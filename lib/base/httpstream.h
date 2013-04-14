@@ -56,9 +56,7 @@ class eHttpStream: public iTsSource, public Object
 	bool m_ishls;
 	std::queue<hls_segment> m_segments;
 	std::string m_lastSegmentUrl;
-    int m_m3uSocket;
 	time_t m_nextLoadTime;
-	time_t m_hlsDuration;
 	int m_lastMediaSequence;
 	
 	int openSock(const std::string& url);

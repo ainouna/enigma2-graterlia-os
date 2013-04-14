@@ -32,7 +32,6 @@ eHttpStream::eHttpStream() :
 	 m_rbuffer(RBUFFER_SIZE)
 	,m_url("")
 	,m_streamSocket(-1)
-	,m_m3uSocket(-1)
 	,m_scratch(NULL)
 	,m_scratchSize(0)
 	,m_contentLength(0)
@@ -109,20 +108,20 @@ int eHttpStream::openSock(const std::string& url)
 // 
 // 	}
 
-	eHttpConnection* fd = new eHttpConnection();
+	eHttpConnection fd = eHttpConnection();
 	m_rbuffer.reset();
 
 	for (int i = 0; i < 3; i++)
 	{
-		int rc = fd->openUrl(currenturl);
+		int rc = fd.openUrl(currenturl);
 		if ( rc < 0 ) {
 			eDebug("%s: connection failed (%m)", __FUNCTION__);
 			return rc;
 		}
 		
-		if (fd->statuscode() == 302) {
-			currenturl = fd->findHeader("Location: ");
-			fd->close();
+		if (fd.statuscode() == 302) {
+			currenturl = fd.findHeader("Location: ");
+			fd.close();
 			if (currenturl.empty()) {
 				eDebug("%s: connection failed (302 but no new url)", __FUNCTION__);
 				return -1;
@@ -132,14 +131,14 @@ int eHttpStream::openSock(const std::string& url)
 			}
 		}
 		
-		m_chunkedTransfer = (fd->findHeader("Transfer-Encoding: ") == "chunked");
+		m_chunkedTransfer = (fd.findHeader("Transfer-Encoding: ") == "chunked");
 		
-		std::string value = fd->findHeader("Content-Length: ");
+		std::string value = fd.findHeader("Content-Length: ");
 		if (!value.empty()) {
 			m_contentLength = strtol(value.c_str(), NULL, 16);
 		}
 		
-		std::string contentStr = fd->findHeader("Content-Type: ");
+		std::string contentStr = fd.findHeader("Content-Type: ");
 		std::transform(contentStr.begin(), contentStr.end(),contentStr.begin(), tolower );
 
 		/* assume we'll get a playlist, some text file containing a stream url */
@@ -165,8 +164,8 @@ int eHttpStream::openSock(const std::string& url)
 		        || contentStr.find("application/x-mpegurl") != std::string::npos);
 		if (m_ishls) {
 			eDebug("HLS stream detected");
-			readPlaylist(fd->fd());
-			fd->close();
+			readPlaylist(fd.fd());
+			fd.close();
 			return 0;
 		}
 	
@@ -217,12 +216,13 @@ int eHttpStream::openSock(const std::string& url)
 // 		}
 	
 		eDebug("%s: started streaming...", __FUNCTION__);
-		m_streamSocket = fd->fd();
+		m_streamSocket = fd.fd();
 		return 0;
 	}
 	
 	eDebug("%s: too many redirects...", __FUNCTION__);
 	/* too many redirect / playlist levels (we accept one redirect + one playlist) */
+	fd.close();
 	close();
 	return -1;
 }
@@ -348,6 +348,8 @@ bool strstart(const std::string &str, const std::string &prefix, std::string *le
 	}
 }
 
+// bool strstart(const char *, 
+
 int eHttpStream::readPlaylist(int fd)
 {
 	eDebug("%s", __FUNCTION__);
@@ -360,15 +362,10 @@ int eHttpStream::readPlaylist(int fd)
 		data.append(buf);
 	}
 	eDebug("M3U8 %d\n%s", c, data.c_str());
-	parsePlaylist(data);
-}
 
-
-int eHttpStream::parsePlaylist(std::string s)
-{
 	std::string line;
 	std::string value;
-	std::istringstream stream(s);
+	std::istringstream stream(data);
 	int target_duration = 0;
 	int duration = 0;
 	bool skip = true;
