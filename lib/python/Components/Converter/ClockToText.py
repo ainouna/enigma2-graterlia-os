@@ -22,6 +22,11 @@ class ClockToText(Converter, object):
 
 	def __init__(self, type):
 		Converter.__init__(self, type)
+
+		self.fix = ""
+		if ';' in type:
+			type, self.fix = type.split(';')
+
 		if type == "WithSeconds":
 			self.type = self.WITH_SECONDS
 		elif type == "InMinutes":
@@ -56,9 +61,17 @@ class ClockToText(Converter, object):
 		if time is None:
 			return ""
 
+		# add/remove 1st space
+		def fix_space(string):
+			if "Proportional" in self.fix and t.tm_hour < 10:
+				return " " + string
+			if "NoSpace" in self.fix:
+				return string.lstrip(' ')
+			return string
+
 		# handle durations
 		if self.type == self.IN_MINUTES:
-			return "%d min" % (time / 60)
+			return _("%d min") % (time / 60)
 		elif self.type == self.AS_LENGTH:
 			if time < 0:
 				return ""
@@ -70,8 +83,7 @@ class ClockToText(Converter, object):
 		elif self.type == self.AS_LENGTHSECONDS:
 			if time < 0:
 				return ""
-			return "%d:%02d:%02d" \
-			 % (time / 3600, time / 60 % 60, time % 60)
+			return "%d:%02d:%02d" % (time / 3600, time / 60 % 60, time % 60)
 		elif self.type == self.TIMESTAMP:
 			return str(time)
 
@@ -79,10 +91,10 @@ class ClockToText(Converter, object):
 
 		if self.type == self.WITH_SECONDS:
 			# TRANSLATORS: full time representation hour:minute:seconds
-			return _("%2d:%02d:%02d") % (t.tm_hour, t.tm_min, t.tm_sec)
+			return fix_space(_("%2d:%02d:%02d") % (t.tm_hour, t.tm_min, t.tm_sec))
 		elif self.type == self.DEFAULT:
 			# TRANSLATORS: short time representation hour:minute
-			return _("%2d:%02d") % (t.tm_hour, t.tm_min)
+			return fix_space(_("%2d:%02d") % (t.tm_hour, t.tm_min))
 		elif self.type == self.DATE:
 			# TRANSLATORS: full date representation dayname daynum monthname year in strftime() format! See 'man strftime'
 			d = _("%A %e %B %Y")

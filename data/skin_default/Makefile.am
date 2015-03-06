@@ -3,7 +3,6 @@ SUBDIRS = menu icons buttons spinner LCDIcons
 installdir = $(pkgdatadir)/skin_default
 
 dist_install_DATA = \
-	anniversaryOpenPLi.png\
 	arrowdown.png \
 	arrowup.png \
 	bar_ber.png \
@@ -30,7 +29,9 @@ dist_install_DATA = \
 	epg_more.png \
 	epg_next.png \
 	epg_now.png \
+	expandable.png \
 	expandable-plugins.png \
+	expanded.png \
 	expanded-plugins.png \
 	info-bg_mp.png \
 	info-bg.png \
@@ -51,6 +52,7 @@ dist_install_DATA = \
 	rc0.png \
 	rc1.png \
 	rc2.png \
+	screensaverpicture.png \
 	screws_mp.png \
 	screws.png \
 	sleeptimer.png \
@@ -58,6 +60,7 @@ dist_install_DATA = \
 	timeline-now.png \
 	timeline.png \
 	unhandled-key.png \
+	verticalline.png \
 	verticalline-plugins.png \
 	vkey_all.png \
 	vkey_backspace.png \

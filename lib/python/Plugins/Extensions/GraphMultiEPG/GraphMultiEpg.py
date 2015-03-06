@@ -11,9 +11,11 @@ from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixm
 from Components.TimerList import TimerList
 from Components.Renderer.Picon import getPiconName
 from Components.Sources.ServiceEvent import ServiceEvent
+import Screens.InfoBar
 from Screens.Screen import Screen
 from Screens.HelpMenu import HelpableScreen
 from Screens.EventView import EventViewEPGSelect
+from Screens.InputBox import PinInput
 from Screens.TimeDateInput import TimeDateInput
 from Screens.TimerEntry import TimerEntry
 from Screens.EpgSelection import EPGSelection
@@ -39,7 +41,7 @@ MAX_TIMELINES = 6
 config.misc.graph_mepg = ConfigSubsection()
 config.misc.graph_mepg.prev_time = ConfigClock(default = time())
 config.misc.graph_mepg.prev_time_period = ConfigInteger(default = 120, limits = (60, 300))
-config.misc.graph_mepg.ev_fontsize = ConfigSelectionNumber(default = 0, stepwidth = 1, min = -8, max = 8, wraparound = True)
+config.misc.graph_mepg.ev_fontsize = ConfigSelectionNumber(default = 0, stepwidth = 1, min = -12, max = 12, wraparound = True)
 config.misc.graph_mepg.items_per_page = ConfigSelectionNumber(min = 3, max = 40, stepwidth = 1, default = 6, wraparound = True)
 config.misc.graph_mepg.items_per_page_listscreen = ConfigSelectionNumber(min = 3, max = 60, stepwidth = 1, default = 12, wraparound = True)
 config.misc.graph_mepg.default_mode = ConfigYesNo(default = False)
@@ -61,6 +63,7 @@ possibleAlignmentChoices = [
 config.misc.graph_mepg.event_alignment = ConfigSelection(default = possibleAlignmentChoices[0][0], choices = possibleAlignmentChoices)
 config.misc.graph_mepg.servicename_alignment = ConfigSelection(default = possibleAlignmentChoices[0][0], choices = possibleAlignmentChoices)
 config.misc.graph_mepg.extension_menu = ConfigYesNo(default = False)
+config.misc.graph_mepg.silent_bouquet_change = ConfigYesNo(default = True)
 
 listscreen = config.misc.graph_mepg.default_mode.value
 
@@ -79,21 +82,36 @@ class EPGList(HTMLComponent, GUIComponent):
 		self.l.setBuildFunc(self.buildEntry)
 		self.setOverjump_Empty(overjump_empty)
 		self.epgcache = eEPGCache.getInstance()
-		self.clocks =  [ LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_add.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_pre.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_prepost.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_post.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_add.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_pre.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_prepost.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_post.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_add.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_pre.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_prepost.png')),
-				 LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_post.png')) ]
+		self.clocks = [ LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_add.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_pre.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_prepost.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/epgclock_post.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_add.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_pre.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_prepost.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zapclock_post.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_add.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_pre.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_prepost.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/zaprecclock_post.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repepgclock_add.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repepgclock_pre.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repepgclock.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repepgclock_prepost.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repepgclock_post.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzapclock_add.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzapclock_pre.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzapclock.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzapclock_prepost.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzapclock_post.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzaprecclock_add.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzaprecclock_pre.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzaprecclock.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzaprecclock_prepost.png')),
+				LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, 'skin_default/icons/repzaprecclock_post.png')) ]
 		self.time_base = None
 		self.time_epoch = time_epoch
 		self.list = None
@@ -136,54 +154,60 @@ class EPGList(HTMLComponent, GUIComponent):
 		self.eventNamePadding = 0
 
 	def applySkin(self, desktop, screen):
-		if self.skinAttributes is not None:
-			attribs = [ ]
-			for (attrib, value) in self.skinAttributes:
-				if attrib == "EntryForegroundColor":
-					self.foreColor = parseColor(value).argb()
-				elif attrib == "EntryForegroundColorSelected":
-					self.foreColorSelected = parseColor(value).argb()
-				elif attrib == "EntryBackgroundColor":
-					self.backColor = parseColor(value).argb()
-				elif attrib == "EntryBackgroundColorSelected":
-					self.backColorSelected = parseColor(value).argb()
-				elif attrib == "EntryBorderColor":
-					self.borderColor = parseColor(value).argb()
-				elif attrib == "EntryFont":
-					font = parseFont(value, ((1,1),(1,1)) )
-					self.entryFontName = font.family
-					self.entryFontSize = font.pointSize
-				elif attrib == "ServiceForegroundColor" or attrib == "ServiceNameForegroundColor":
-					self.foreColorService = parseColor(value).argb()
-				elif attrib == "ServiceForegroundColorSelected":
-					self.foreColorServiceSelected = parseColor(value).argb()
-				elif attrib == "ServiceBackgroundColor" or attrib == "ServiceNameBackgroundColor":
-					self.backColorService = parseColor(value).argb()
-				elif attrib == "ServiceBackgroundColorSelected":
-					self.backColorServiceSelected = parseColor(value).argb()
-				elif attrib == "ServiceBackgroundColorRecording" or attrib == "ServiceNameBackgroundColor":
-					self.backColorRec = parseColor(value).argb()
-				elif attrib == "ServiceForegroundColorRecording":
-					self.foreColorRec = parseColor(value).argb()
-				elif attrib == "ServiceBorderColor":
-					self.borderColorService = parseColor(value).argb()
-				elif attrib == "ServiceFont":
-					self.serviceFont = parseFont(value, ((1,1),(1,1)) )
-				elif attrib == "EntryBackgroundColorNow":
-					self.backColorNow = parseColor(value).argb()
-				elif attrib == "EntryForegroundColorNow":
-					self.foreColorNow = parseColor(value).argb()
-				elif attrib == "ServiceBorderWidth":
-					self.serviceBorderWidth = int(value)
-				elif attrib == "ServiceNamePadding":
-					self.serviceNamePadding = int(value)
-				elif attrib == "EventBorderWidth":
-					self.eventBorderWidth = int(value)
-				elif attrib == "EventNamePadding":
-					self.eventNamePadding = int(value)
-				else:
-					attribs.append((attrib,value))
-			self.skinAttributes = attribs
+		def EntryForegroundColor(value):
+			self.foreColor = parseColor(value).argb()
+		def EntryForegroundColorSelected(value):
+			self.foreColorSelected = parseColor(value).argb()
+		def EntryBackgroundColor(value):
+			self.backColor = parseColor(value).argb()
+		def EntryBackgroundColorSelected(value):
+			self.backColorSelected = parseColor(value).argb()
+		def EntryBorderColor(value):
+			self.borderColor = parseColor(value).argb()
+		def EntryFont(value):
+			font = parseFont(value, ((1,1),(1,1)) )
+			self.entryFontName = font.family
+			self.entryFontSize = font.pointSize
+		def ServiceForegroundColor(value):
+			self.foreColorService = parseColor(value).argb()
+		def ServiceNameForegroundColor(value):
+			self.foreColorService = parseColor(value).argb()
+		def ServiceForegroundColorSelected(value):
+			self.foreColorServiceSelected = parseColor(value).argb()
+		def ServiceBackgroundColor(value):
+			self.backColorService = parseColor(value).argb()
+		def ServiceNameBackgroundColor(value):
+			self.backColorService = parseColor(value).argb()
+		def ServiceBackgroundColorSelected(value):
+			self.backColorServiceSelected = parseColor(value).argb()
+		def ServiceBackgroundColorRecording(value):
+			self.backColorRec = parseColor(value).argb()
+		def ServiceNameBackgroundColor(value):
+			self.backColorRec = parseColor(value).argb()
+		def ServiceForegroundColorRecording(value):
+			self.foreColorRec = parseColor(value).argb()
+		def ServiceBorderColor(value):
+			self.borderColorService = parseColor(value).argb()
+		def ServiceFont(value):
+			self.serviceFont = parseFont(value, ((1,1),(1,1)) )
+		def EntryBackgroundColorNow(value):
+			self.backColorNow = parseColor(value).argb()
+		def EntryForegroundColorNow(value):
+			self.foreColorNow = parseColor(value).argb()
+		def ServiceBorderWidth(value):
+			self.serviceBorderWidth = int(value)
+		def ServiceNamePadding(value):
+			self.serviceNamePadding = int(value)
+		def EventBorderWidth(value):
+			self.eventBorderWidth = int(value)
+		def EventNamePadding(value):
+			self.eventNamePadding = int(value)
+		for (attrib, value) in list(self.skinAttributes):
+			try:
+				locals().get(attrib)(value)
+				self.skinAttributes.remove((attrib, value))
+			except:
+				pass
 		self.l.setFont(0, self.serviceFont)
 		self.setEventFontsize()
 		rc = GUIComponent.applySkin(self, desktop, screen)
@@ -236,12 +260,17 @@ class EPGList(HTMLComponent, GUIComponent):
 		self.setCurrentIndex(newIdx)
 
 	def setCurrentIndex(self, index):
-		if self.instance is not None:
+		if self.instance:
 			self.instance.moveSelectionTo(index)
 
 	def moveTo(self, dir):
-		if self.instance is not None:
+		if self.instance:
 			self.instance.moveSelection(dir)
+
+	def moveToFromEPG(self, dir, epg):
+		self.moveTo(dir==1 and eListbox.moveDown or eListbox.moveUp)
+		if self.cur_service:
+			epg.setService(ServiceReference(self.cur_service[0]))
 
 	def getCurrent(self):
 		if self.cur_service is None:
@@ -469,7 +498,7 @@ class EPGList(HTMLComponent, GUIComponent):
 				if selected and self.select_rect.x == xpos + left and self.selEvPix:
 					bgpng = self.selEvPix
 					backColorSel = None
-				elif rec is not None and rec[1][-1] in (2, 12):
+				elif rec is not None and rec[1][-1] in (2, 12, 17, 27):
 					bgpng = self.recEvPix
 					foreColor = self.foreColorRec
 					backColor = self.backColorRec
@@ -653,18 +682,18 @@ class TimelineText(HTMLComponent, GUIComponent):
 	GUI_WIDGET = eListbox
 
 	def applySkin(self, desktop, screen):
-		if self.skinAttributes is not None:
-			attribs = [ ]
-			for (attrib, value) in self.skinAttributes:
-				if   attrib == "foregroundColor":
-					self.foreColor = parseColor(value).argb()
-				elif attrib == "backgroundColor":
-					self.backColor = parseColor(value).argb()
-				elif attrib == "font":
-					self.font = parseFont(value,  ((1, 1), (1, 1)) )
-				else:
-					attribs.append((attrib,value))
-			self.skinAttributes = attribs
+		def foregroundColor(value):
+			self.foreColor = parseColor(value).argb()
+		def backgroundColor(value):
+			self.backColor = parseColor(value).argb()
+		def font(value):
+			self.font = parseFont(value,  ((1, 1), (1, 1)) )
+		for (attrib, value) in list(self.skinAttributes):
+			try:
+				locals().get(attrib)(value)
+				self.skinAttributes.remove((attrib, value))
+			except:
+				pass
 		self.l.setFont(0, self.font)
 		return GUIComponent.applySkin(self, desktop, screen)
 
@@ -803,8 +832,8 @@ class GraphMultiEPG(Screen, HelpableScreen):
 				"yellow":      (self.swapMode,       _("Switch between normal mode and list mode")),
 				"blue":        (self.enterDateTime,  _("Goto specific date/time")),
 				"menu":	       (self.furtherOptions, _("Further Options")),
-				"nextBouquet": (self.nextBouquet,    _("Show bouquet selection menu")),
-				"prevBouquet": (self.prevBouquet,    _("Show bouquet selection menu")),
+				"nextBouquet": (self.nextBouquet, self.getKeyNextBouquetHelptext),
+				"prevBouquet": (self.prevBouquet, self.getKeyPrevBouquetHelptext),
 				"nextService": (self.nextPressed,    _("Goto next page of events")),
 				"prevService": (self.prevPressed,    _("Goto previous page of events")),
 				"preview":     (self.preview,        _("Preview selected channel")),
@@ -830,6 +859,7 @@ class GraphMultiEPG(Screen, HelpableScreen):
 			}, -1)
 		self["inputactions"].csel = self
 
+		self.protectContextMenu = True
 		self.updateTimelineTimer = eTimer()
 		self.updateTimelineTimer.callback.append(self.moveTimeLines)
 		self.updateTimelineTimer.start(60 * 1000)
@@ -894,6 +924,12 @@ class GraphMultiEPG(Screen, HelpableScreen):
 	def key6(self):
 		self.updEpoch(360)
 
+	def getKeyNextBouquetHelptext(self):
+		return config.misc.graph_mepg.silent_bouquet_change.value and _("Switch to next bouquet") or _("Show bouquet selection menu")
+
+	def getKeyPrevBouquetHelptext(self):
+		return config.misc.graph_mepg.silent_bouquet_change.value and _("Switch to previous bouquet") or _("Show bouquet selection menu")
+
 	def nextBouquet(self):
 		if self.bouquetChangeCB:
 			self.bouquetChangeCB(1, self)
@@ -919,7 +955,17 @@ class GraphMultiEPG(Screen, HelpableScreen):
 				self.moveTimeLines(True)
 
 	def showSetup(self):
-		self.session.openWithCallback(self.onSetupClose, GraphMultiEpgSetup)
+		if self.protectContextMenu and config.ParentalControl.setuppinactive.value and config.ParentalControl.config_sections.context_menus.value:
+			self.session.openWithCallback(self.protectResult, PinInput, pinList=[x.value for x in config.ParentalControl.servicepin], triesEntry=config.ParentalControl.retries.servicepin, title=_("Please enter the correct pin code"), windowTitle=_("Enter pin code"))
+		else:
+			self.protectResult(True)
+
+	def protectResult(self, answer):
+		if answer:
+			self.session.openWithCallback(self.onSetupClose, GraphMultiEpgSetup)
+			self.protectContextMenu = False
+		elif answer is not None:
+			self.session.openWithCallback(self.close, MessageBox, _("The pin code you entered is wrong."), MessageBox.TYPE_ERROR)
 
 	def onSetupClose(self, ignore = -1):
 		l = self["list"]
@@ -978,7 +1024,7 @@ class GraphMultiEPG(Screen, HelpableScreen):
 	def openSingleServiceEPG(self):
 		ref = self["list"].getCurrent()[1].ref.toString()
 		if ref:
-			self.session.open(EPGSelection, ref)
+			self.session.openWithCallback(self.doRefresh, EPGSelection, ref, self.zapFunc, serviceChangeCB=self["list"].moveToFromEPG)
 
 	def openMultiServiceEPG(self):
 		if self.services:
@@ -986,17 +1032,18 @@ class GraphMultiEPG(Screen, HelpableScreen):
 
 	def setServices(self, services):
 		self.services = services
+		self["list"].resetOffset()
 		self.onCreate()
 
 	def doRefresh(self, answer):
-		serviceref = self.session.nav.getCurrentlyPlayingServiceOrGroup()
+		serviceref = Screens.InfoBar.InfoBar.instance.servicelist.getCurrentSelection()
 		l = self["list"]
 		l.moveToService(serviceref)
 		l.setCurrentlyPlaying(serviceref)
 		self.moveTimeLines()
 
 	def onCreate(self):
-		serviceref = self.session.nav.getCurrentlyPlayingServiceOrGroup()
+		serviceref = Screens.InfoBar.InfoBar.instance.servicelist.getCurrentSelection()
 		l = self["list"]
 		l.setShowServiceMode(config.misc.graph_mepg.servicetitle_mode.value)
 		self["timeline_text"].setDateFormat(config.misc.graph_mepg.servicetitle_mode.value)
@@ -1054,40 +1101,100 @@ class GraphMultiEPG(Screen, HelpableScreen):
 		self["key_green"].setText(_("Add timer"))
 		self.key_green_choice = self.ADD_TIMER
 
-	def disableTimer(self, timer):
-		timer.disable()
-		self.session.nav.RecordTimer.timeChanged(timer)
-		self["key_green"].setText(_("Add timer"))
-		self.key_green_choice = self.ADD_TIMER
+	def disableTimer(self, timer, state, repeat=False, record=False):
+		if repeat:
+			if record:
+				title_text = _("Repeating event currently recording.\nWhat do you want to do?")
+				menu = [(_("Stop current event but not coming events"), "stoponlycurrent"),(_("Stop current event and disable coming events"), "stopall")]
+				if not timer.disabled:
+					menu.append((_("Don't stop current event but disable coming events"), "stoponlycoming"))
+			else:
+				title_text = _("Attention, this is repeated timer!\nWhat do you want to do?")
+				menu = [(_("Disable current event but not coming events"), "nextonlystop"),(_("Disable timer"), "simplestop")]
+			self.session.openWithCallback(boundFunction(self.runningEventCallback, timer, state), ChoiceBox, title=title_text, list=menu)
+		elif timer.state == state:
+			timer.disable()
+			self.session.nav.RecordTimer.timeChanged(timer)
+			self["key_green"].setText(_("Add timer"))
+			self.key_green_choice = self.ADD_TIMER
+
+	def runningEventCallback(self, t, state, result):
+		if result is not None and t.state == state:
+			findNextRunningEvent = True
+			findEventNext = False
+			if result[1] == "nextonlystop":
+				findEventNext = True
+				t.disable()
+				self.session.nav.RecordTimer.timeChanged(t)
+				t.processRepeated(findNextEvent=True)
+				t.enable()
+			if result[1] in ("stoponlycurrent", "stopall"):
+				findNextRunningEvent = False
+				t.enable()
+				t.processRepeated(findRunningEvent=False)
+				self.session.nav.RecordTimer.doActivate(t)
+			if result[1] in ("stoponlycoming", "stopall", "simplestop"):
+				findNextRunningEvent = True
+				t.disable()
+			self.session.nav.RecordTimer.timeChanged(t)
+			t.findRunningEvent = findNextRunningEvent
+			t.findNextEvent = findEventNext
+			if result[1] in ("stoponlycurrent", "stopall", "simplestop", "nextonlystop"):
+				self["key_green"].setText(_("Add timer"))
+				self.key_green_choice = self.ADD_TIMER
 
 	def timerAdd(self):
 		cur = self["list"].getCurrent()
 		event = cur[0]
+		serviceref = cur[1]
 		if event is None:
 			return
+		isRecordEvent = isRepeat = firstNextRepeatEvent = isRunning = False
 		eventid = event.getEventId()
-		serviceref = cur[1]
+		begin = event.getBeginTime()
+		end = begin + event.getDuration()
 		refstr = ':'.join(serviceref.ref.toString().split(':')[:11])
 		for timer in self.session.nav.RecordTimer.timer_list:
-			if timer.eit == eventid and ':'.join(timer.service_ref.ref.toString().split(':')[:11]) == refstr:
-				menu = [(_("Delete timer"), "delete"),(_("Edit timer"), "edit")]
-				buttons = ["red", "green"]
-				if not timer.isRunning():
-					menu.append((_("Disable timer"), "disable"))
-					buttons.append("yellow")
-				menu.append((_("Timer Overview"), "timereditlist"))
-				def timerAction(choice):
-					if choice is not None:
-						if choice[1] == "delete":
-							self.removeTimer(timer)
-						elif choice[1] == "edit":
-							self.session.open(TimerEntry, timer)
-						elif choice[1] == "disable":
-							self.disableTimer(timer)
-						elif choice[1] == "timereditlist":
-							self.session.open(TimerEditList)
-				self.session.openWithCallback(timerAction, ChoiceBox, title=_("Select action for timer %s:") % event.getEventName(), list=menu, keys=buttons)
+			needed_ref = ':'.join(timer.service_ref.ref.toString().split(':')[:11]) == refstr
+			if needed_ref and timer.eit == eventid and (begin < timer.begin <= end or timer.begin <= begin <= timer.end):
+				isRecordEvent = True
 				break
+			elif needed_ref and timer.repeated and self.session.nav.RecordTimer.isInRepeatTimer(timer, event):
+				isRecordEvent = True
+				break
+		if isRecordEvent:
+			isRepeat = timer.repeated
+			prev_state = timer.state
+			isRunning = prev_state in (1, 2)
+			title_text = isRepeat and _("Attention, this is repeated timer!\n") or ""
+			firstNextRepeatEvent = isRepeat and (begin < timer.begin <= end or timer.begin <= begin <= timer.end) and not timer.justplay 
+			menu = [(_("Delete timer"), "delete"),(_("Edit timer"), "edit")]
+			buttons = ["red", "green"]
+			if not isRunning:
+				if firstNextRepeatEvent and timer.isFindRunningEvent() and not timer.isFindNextEvent():
+					menu.append((_("Options disable timer"), "disablerepeat"))
+				else:
+					menu.append((_("Disable timer"), "disable"))
+				buttons.append("yellow")
+			elif prev_state == 2 and firstNextRepeatEvent:
+				menu.append((_("Options disable timer"), "disablerepeatrunning"))
+				buttons.append("yellow")
+			menu.append((_("Timer Overview"), "timereditlist"))
+			def timerAction(choice):
+				if choice is not None:
+					if choice[1] == "delete":
+						self.removeTimer(timer)
+					elif choice[1] == "edit":
+						self.session.open(TimerEntry, timer)
+					elif choice[1] == "disable":
+						self.disableTimer(timer, prev_state)
+					elif choice[1] == "timereditlist":
+						self.session.open(TimerEditList)
+					elif choice[1] == "disablerepeatrunning":
+						self.disableTimer(timer, prev_state, repeat=True, record=True)
+					elif choice[1] == "disablerepeat":
+						self.disableTimer(timer, prev_state, repeat=True)
+			self.session.openWithCallback(timerAction, ChoiceBox, title=title_text + _("Select action for timer '%s'.") % timer.name, list=menu, keys=buttons)
 		else:
 			newEntry = RecordTimerEntry(serviceref, checkOldTimers = True, *parseEvent(event))
 			self.session.openWithCallback(self.finishedTimerAdd, TimerEntry, newEntry)
@@ -1117,8 +1224,15 @@ class GraphMultiEPG(Screen, HelpableScreen):
 							simulTimerList = self.session.nav.RecordTimer.record(entry)
 					if simulTimerList is not None:
 						self.session.openWithCallback(self.finishSanityCorrection, TimerSanityConflict, simulTimerList)
-			self["key_green"].setText(_("Change timer"))
-			self.key_green_choice = self.REMOVE_TIMER
+						return
+			cur = self["list"].getCurrent()
+			event = cur and cur[0]
+			if event:
+				begin = event.getBeginTime()
+				end = begin + event.getDuration()
+				if begin < entry.begin <= end or entry.begin <= begin <= entry.end:
+					self["key_green"].setText(_("Change timer"))
+					self.key_green_choice = self.REMOVE_TIMER
 		else:
 			self["key_green"].setText(_("Add timer"))
 			self.key_green_choice = self.ADD_TIMER
@@ -1155,10 +1269,13 @@ class GraphMultiEPG(Screen, HelpableScreen):
 			return
 
 		eventid = event.getEventId()
+		begin = event.getBeginTime()
+		end = begin + event.getDuration()
 		refstr = ':'.join(servicerefref.toString().split(':')[:11])
 		isRecordEvent = False
 		for timer in self.session.nav.RecordTimer.timer_list:
-			if timer.eit == eventid and ':'.join(timer.service_ref.ref.toString().split(':')[:11]) == refstr:
+			needed_ref = ':'.join(timer.service_ref.ref.toString().split(':')[:11]) == refstr
+			if needed_ref and (timer.eit == eventid and (begin < timer.begin <= end or timer.begin <= begin <= timer.end) or timer.repeated and self.session.nav.RecordTimer.isInRepeatTimer(timer, event)):
 				isRecordEvent = True
 				break
 		if isRecordEvent and self.key_green_choice != self.REMOVE_TIMER:

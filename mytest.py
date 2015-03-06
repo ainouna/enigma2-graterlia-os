@@ -21,6 +21,11 @@ from Screens.SimpleSummary import SimpleSummary
 from sys import stdout, exc_info
 
 profile("Bouquets")
+from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
+config.misc.load_unlinked_userbouquets = ConfigYesNo(default=True)
+def setLoadUnlinkedUserbouquets(configElement):
+	enigma.eDVBDB.getInstance().setLoadUnlinkedUserbouquets(configElement.value)
+config.misc.load_unlinked_userbouquets.addNotifier(setLoadUnlinkedUserbouquets)
 enigma.eDVBDB.getInstance().reloadBouquets()
 
 profile("ParentalControl")
@@ -35,7 +40,6 @@ from skin import readSkin
 
 profile("LOAD:Tools")
 from Tools.Directories import InitFallbackFiles, resolveFilename, SCOPE_PLUGINS, SCOPE_CURRENT_SKIN
-from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
 InitFallbackFiles()
 
 profile("config.misc")
@@ -220,16 +224,6 @@ class Session:
 			self.current_dialog.removeSummary(self.summary)
 			self.popSummary()
 
-	def create(self, screen, arguments, **kwargs):
-		# creates an instance of 'screen' (which is a class)
-		try:
-			return screen(self, *arguments, **kwargs)
-		except:
-			errstr = "Screen %s(%s, %s): %s" % (str(screen), str(arguments), str(kwargs), exc_info()[0])
-			print errstr
-			print_exc(file=stdout)
-			enigma.quitMainloop(5)
-
 	def instantiateDialog(self, screen, *arguments, **kwargs):
 		return self.doInstantiateDialog(screen, arguments, kwargs, self.desktop)
 
@@ -247,28 +241,14 @@ class Session:
 
 	def doInstantiateDialog(self, screen, arguments, kwargs, desktop):
 		# create dialog
-
-		try:
-			dlg = self.create(screen, arguments, **kwargs)
-		except:
-			print 'EXCEPTION IN DIALOG INIT CODE, ABORTING:'
-			print '-'*60
-			print_exc(file=stdout)
-			enigma.quitMainloop(5)
-			print '-'*60
-
+		dlg = screen(self, *arguments, **kwargs)
 		if dlg is None:
 			return
-
 		# read skin data
 		readSkin(dlg, None, dlg.skinName, desktop)
-
 		# create GUI view of this dialog
-		assert desktop is not None
-
 		dlg.setDesktop(desktop)
 		dlg.applySkin()
-
 		return dlg
 
 	def pushCurrent(self):

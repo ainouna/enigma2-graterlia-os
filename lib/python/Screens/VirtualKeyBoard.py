@@ -12,12 +12,14 @@ from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixm
 from Tools.Directories import resolveFilename, SCOPE_CURRENT_SKIN
 from Tools.LoadPixmap import LoadPixmap
 from Tools.NumericalTextInput import NumericalTextInput
+import skin
 
 class VirtualKeyBoardList(MenuList):
 	def __init__(self, list, enableWrapAround=False):
 		MenuList.__init__(self, list, enableWrapAround, eListboxPythonMultiContent)
-		self.l.setFont(0, gFont("Regular", 28))
-		self.l.setItemHeight(45)
+		font = skin.fonts.get("VirtualKeyboard", ("Regular", 28, 45))
+		self.l.setFont(0, gFont(font[0], font[1]))
+		self.l.setItemHeight(font[2])
 
 class VirtualKeyBoardEntryComponent:
 	pass
@@ -159,6 +161,20 @@ class VirtualKeyBoard(Screen):
 				[u"A", u"S", u"D", u"F", u"G", u"H", u"J", u"K", u"L", u"Ö", u"Ä", u"'"],
 				[u">", u"Y", u"X", u"C", u"V", u"B", u"N", u"M", u";", u":", u"_", u"CLEAR"],
 				[u"SHIFT", u"SPACE", u"?", u"\\", u"Ĺ", u"OK", u"LEFT", u"RIGHT"]]
+			self.nextLang = 'lv_LV'
+		elif self.lang == 'lv_LV':
+			self.keys_list = [
+				[u"EXIT", u"1", u"2", u"3", u"4", u"5", u"6", u"7", u"8", u"9", u"0", u"BACKSPACE"],
+				[u"q", u"w", u"e", u"r", u"t", u"y", u"u", u"i", u"o", u"p", u"-", u"š"],
+				[u"a", u"s", u"d", u"f", u"g", u"h", u"j", u"k", u"l", u";", u"'", u"ū"],
+				[u"<", u"z", u"x", u"c", u"v", u"b", u"n", u"m", u",", u".", u"ž", u"ALL"],
+				[u"SHIFT", u"SPACE", u"ā", u"č", u"ē", u"ģ", u"ī", u"ķ", u"ļ", u"ņ", u"LEFT", u"RIGHT"]]
+			self.shiftkeys_list = [
+				[u"EXIT", u"!", u"@", u"$", u"*", u"(", u")", u"_", u"=", u"/", u"\\", u"BACKSPACE"],
+				[u"Q", u"W", u"E", u"R", u"T", u"Y", u"U", u"I", u"O", u"P", u"+", u"Š"],
+				[u"A", u"S", u"D", u"F", u"G", u"H", u"J", u"K", u"L", u":", u'"', u"Ū"],
+				[u">", u"Z", u"X", u"C", u"V", u"B", u"N", u"M", u"#", u"?", u"Ž", u"CLEAR"],
+				[u"SHIFT", u"SPACE", u"Ā", u"Č", u"Ē", u"Ģ", u"Ī", u"Ķ", u"Ļ", u"Ņ", u"LEFT", u"RIGHT"]]
 			self.nextLang = 'ru_RU'
 		elif self.lang == 'ru_RU':
 			self.keys_list = [
@@ -264,7 +280,8 @@ class VirtualKeyBoard(Screen):
 		self.max_key=47+len(self.keys_list[4])
 
 	def virtualKeyBoardEntryComponent(self, keys):
-		key_bg_width = self.key_bg and self.key_bg.size().width() or 45
+		w, h = skin.parameters.get("VirtualKeyboard",(45, 45))
+		key_bg_width = self.key_bg and self.key_bg.size().width() or w
 		key_images = self.shiftMode and self.keyImagesShift or self.keyImages
 		res = [(keys)]
 		text = []
@@ -273,11 +290,11 @@ class VirtualKeyBoard(Screen):
 			png = key_images.get(key, None)
 			if png:
 				width = png.size().width()
-				res.append(MultiContentEntryPixmapAlphaTest(pos=(x, 0), size=(width, 45), png=png))
+				res.append(MultiContentEntryPixmapAlphaTest(pos=(x, 0), size=(width, h), png=png))
 			else:
 				width = key_bg_width
-				res.append(MultiContentEntryPixmapAlphaTest(pos=(x, 0), size=(width, 45), png=self.key_bg))
-				text.append(MultiContentEntryText(pos=(x, 0), size=(width, 45), font=0, text=key.encode("utf-8"), flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER))
+				res.append(MultiContentEntryPixmapAlphaTest(pos=(x, 0), size=(width, h), png=self.key_bg))
+				text.append(MultiContentEntryText(pos=(x, 0), size=(width, h), font=0, text=key.encode("utf-8"), flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER))
 			x += width
 		return res + text
 
@@ -289,11 +306,12 @@ class VirtualKeyBoard(Screen):
 		self.markSelectedKey()
 
 	def markSelectedKey(self):
+		w, h = skin.parameters.get("VirtualKeyboard",(45, 45))
 		if self.previousSelectedKey is not None:
 			self.list[self.previousSelectedKey /12] = self.list[self.previousSelectedKey /12][:-1]
 		width = self.key_sel.size().width()
 		x = self.list[self.selectedKey/12][self.selectedKey % 12 + 1][1]
-		self.list[self.selectedKey / 12].append(MultiContentEntryPixmapAlphaTest(pos=(x, 0), size=(width, 45), png=self.key_sel))
+		self.list[self.selectedKey / 12].append(MultiContentEntryPixmapAlphaTest(pos=(x, 0), size=(width, h), png=self.key_sel))
 		self.previousSelectedKey = self.selectedKey
 		self["list"].setList(self.list)
 
@@ -332,7 +350,7 @@ class VirtualKeyBoard(Screen):
 			self["text"].char(" ".encode("UTF-8"))
 
 		elif text == "OK":
-			self.close(self["text"].getText().encode("UTF-8"))
+			self.close(self["text"].getText())
 
 		elif text == "LEFT":
 			self["text"].left()
@@ -344,7 +362,7 @@ class VirtualKeyBoard(Screen):
 			self["text"].char(text)
 
 	def ok(self):
-		self.close(self["text"].getText().encode("UTF-8"))
+		self.close(self["text"].getText())
 
 	def exit(self):
 		self.close(None)

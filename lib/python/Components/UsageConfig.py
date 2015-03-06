@@ -30,10 +30,10 @@ def InitUsageConfig():
 	config.usage.record_indicator_mode = ConfigSelection(default = "0", choices = [("0", _("None")), ("1", _("Left from servicename")), ("2", _("Right from servicename")), ("3", _("Red colored"))])
 	config.usage.record_indicator_mode.addNotifier(refreshServiceList)
 
-	choicelist = [("-1", _("Devide")), ("0", _("Disable"))]
-	for i in range(100,1300,100):
+	choicelist = [("-1", _("Disable"))]
+	for i in range(0,1300,100):
 		choicelist.append(("%d" % i, ngettext("%d pixel wide", "%d pixels wide", i) % i))
-	config.usage.servicelist_column = ConfigSelection(default="0", choices=choicelist)
+	config.usage.servicelist_column = ConfigSelection(default="-1", choices=choicelist)
 	config.usage.servicelist_column.addNotifier(refreshServiceList)
 
 	config.usage.service_icon_enable = ConfigYesNo(default = False)
@@ -61,6 +61,8 @@ def InitUsageConfig():
 	config.usage.oldstyle_channel_select_controls = ConfigYesNo(default = False)
 	config.usage.zap_with_ch_buttons = ConfigYesNo(default = False)
 	config.usage.ok_is_channelselection = ConfigYesNo(default = False)
+	config.usage.volume_instead_of_channelselection = ConfigYesNo(default = False)
+	config.usage.channelselection_preview = ConfigYesNo(default = False)
 	config.usage.show_spinner = ConfigYesNo(default = True)
 	config.usage.enable_tt_caching = ConfigYesNo(default = True)
 	choicelist = []
@@ -97,7 +99,10 @@ def InitUsageConfig():
 	config.usage.movielist_trashcan_days = ConfigNumber(default=8)
 	config.usage.movielist_trashcan_reserve = ConfigNumber(default=40)
 	config.usage.on_movie_start = ConfigSelection(default = "resume", choices = [
-		("ask", _("Ask user")), ("resume", _("Resume from last position")), ("beginning", _("Start from the beginning")) ])
+		("ask yes", _("Ask user") + " " + _("default") + " " + _("yes")),
+		("ask no", _("Ask user") + " " + _("default") + " " + _("no")),
+		("resume", _("Resume from last position")),
+		("beginning", _("Start from the beginning"))])
 	config.usage.on_movie_stop = ConfigSelection(default = "movielist", choices = [
 		("ask", _("Ask user")), ("movielist", _("Return to movie list")), ("quit", _("Return to previous service")) ])
 	config.usage.on_movie_eof = ConfigSelection(default = "movielist", choices = [
@@ -178,7 +183,11 @@ def InitUsageConfig():
 		("2", "DVB-C/-S/-T"),
 		("3", "DVB-C/-T/-S"),
 		("4", "DVB-T/-C/-S"),
-		("5", "DVB-T/-S/-C") ])
+		("5", "DVB-T/-S/-C"),
+		("127", _("No priority")) ])
+
+	config.usage.remote_fallback_enabled = ConfigYesNo(default = False);
+	config.usage.remote_fallback = ConfigText(default = "", fixed_size = False);
 
 	nims = [("-1", _("auto"))]
 	for x in nimmanager.nim_slots:
@@ -260,7 +269,10 @@ def InitUsageConfig():
 
 	if SystemInfo["WakeOnLAN"]:
 		def wakeOnLANChanged(configElement):
-			open(SystemInfo["WakeOnLAN"], "w").write(configElement.value and "on" or "off")
+			if "fp" in SystemInfo["WakeOnLAN"]:
+				open(SystemInfo["WakeOnLAN"], "w").write(configElement.value and "enable" or "disable")
+			else:
+				open(SystemInfo["WakeOnLAN"], "w").write(configElement.value and "on" or "off")
 		config.usage.wakeOnLAN = ConfigYesNo(default = False)
 		config.usage.wakeOnLAN.addNotifier(wakeOnLANChanged)
 
@@ -330,9 +342,6 @@ def InitUsageConfig():
 		("step", _("Single step (GOP)")),
 		("last", _("Last speed")) ])
 
-
-	config.crash = ConfigSubsection()
-	config.crash.details = ConfigYesNo(default = False)
 	config.usage.timerlist_finished_timer_position = ConfigSelection(default = "end", choices = [("beginning", _("At beginning")), ("end", _("At end"))])
 
 	def updateEnterForward(configElement):
@@ -372,6 +381,42 @@ def InitUsageConfig():
 			("mute", _("Black screen")), ("hold", _("Hold screen")), ("mutetilllock", _("Black screen till locked")), ("holdtilllock", _("Hold till locked"))])
 		config.misc.zapmode.addNotifier(setZapmode, immediate_feedback = False)
 
+	if SystemInfo["VFD_scroll_repeats"]:
+		def scroll_repeats(el):
+			open(SystemInfo["VFD_scroll_repeats"], "w").write(el.value)
+		choicelist = []
+		for i in range(1, 11, 1):
+			choicelist.append(("%d" % i))
+		config.usage.vfd_scroll_repeats = ConfigSelection(default = "3", choices = choicelist)
+		config.usage.vfd_scroll_repeats.addNotifier(scroll_repeats, immediate_feedback = False)
+
+	if SystemInfo["VFD_scroll_delay"]:
+		def scroll_delay(el):
+			open(SystemInfo["VFD_scroll_delay"], "w").write(el.value)
+		choicelist = []
+		for i in range(0, 1001, 50):
+			choicelist.append(("%d" % i))
+		config.usage.vfd_scroll_delay = ConfigSelection(default = "150", choices = choicelist)
+		config.usage.vfd_scroll_delay.addNotifier(scroll_delay, immediate_feedback = False)
+
+	if SystemInfo["VFD_initial_scroll_delay"]:
+		def initial_scroll_delay(el):
+			open(SystemInfo["VFD_initial_scroll_delay"], "w").write(el.value)
+		choicelist = []
+		for i in range(0, 20001, 500):
+			choicelist.append(("%d" % i))
+		config.usage.vfd_initial_scroll_delay = ConfigSelection(default = "1000", choices = choicelist)
+		config.usage.vfd_initial_scroll_delay.addNotifier(initial_scroll_delay, immediate_feedback = False)
+
+	if SystemInfo["VFD_final_scroll_delay"]:
+		def final_scroll_delay(el):
+			open(SystemInfo["VFD_final_scroll_delay"], "w").write(el.value)
+		choicelist = []
+		for i in range(0, 20001, 500):
+			choicelist.append(("%d" % i))
+		config.usage.vfd_final_scroll_delay = ConfigSelection(default = "1000", choices = choicelist)
+		config.usage.vfd_final_scroll_delay.addNotifier(final_scroll_delay, immediate_feedback = False)
+
 	config.subtitles = ConfigSubsection()
 	config.subtitles.ttx_subtitle_colors = ConfigSelection(default = "1", choices = [
 		("0", _("original")),
@@ -381,8 +426,9 @@ def InitUsageConfig():
 	config.subtitles.subtitle_position = ConfigSelection( choices = ["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100", "150", "200", "250", "300", "350", "400", "450"], default = "50")
 	config.subtitles.subtitle_alignment = ConfigSelection(choices = [("left", _("left")), ("center", _("center")), ("right", _("right"))], default = "center")
 	config.subtitles.subtitle_rewrap = ConfigYesNo(default = False)
+	config.subtitles.colourise_dialogs = ConfigYesNo(default = False)
 	config.subtitles.subtitle_borderwidth = ConfigSelection(choices = ["1", "2", "3", "4", "5"], default = "3")
-	config.subtitles.subtitle_fontsize  = ConfigSelection(choices = ["16", "18", "20", "22", "24", "26", "28", "30", "32", "34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54"], default = "34")
+	config.subtitles.subtitle_fontsize  = ConfigSelection(choices = ["%d" % x for x in range(16,101) if not x % 2], default = "40")
 
 	subtitle_delay_choicelist = []
 	for i in range(-900000, 1845000, 45000):
@@ -408,10 +454,11 @@ def InitUsageConfig():
 		("200", "80%"),
 		("225", "90%"),
 		("255", _("Full transparency"))])
-	config.subtitles.pango_subtitle_colors = ConfigSelection(default = "0", choices = [
+	config.subtitles.pango_subtitle_colors = ConfigSelection(default = "1", choices = [
 		("0", _("alternative")),
 		("1", _("white")),
 		("2", _("yellow")) ])
+	config.subtitles.pango_subtitle_fontswitch = ConfigYesNo(default = True)
 	config.subtitles.pango_subtitles_delay = ConfigSelection(default = "0", choices = subtitle_delay_choicelist)
 	config.subtitles.pango_subtitles_fps = ConfigSelection(default = "1", choices = [
 		("1", _("Original")),
@@ -457,7 +504,8 @@ def InitUsageConfig():
 		("spa", _("Spanish")),
 		("swe", _("Swedish")),
 		("tha", _("Thai")),
-		("tur Audio_TUR", _("Turkish"))]
+		("tur Audio_TUR", _("Turkish")),
+		("ukr Ukr", _("Ukrainian"))]
 
 	def setEpgLanguage(configElement):
 		eServiceEvent.setEPGLanguage(configElement.value)

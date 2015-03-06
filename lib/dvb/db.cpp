@@ -8,6 +8,7 @@
 #include <lib/base/eenv.h>
 #include <lib/base/eerror.h>
 #include <lib/base/estring.h>
+#include <lib/base/nconfig.h>
 #include <xmlccwrap/xmlccwrap.h>
 #include <dvbsi++/service_description_section.h>
 #include <dvbsi++/descriptor_tag.h>
@@ -34,13 +35,13 @@ RESULT eBouquet::addService(const eServiceReference &ref, eServiceReference befo
 	return 0;
 }
 
-RESULT eBouquet::removeService(const eServiceReference &ref)
+RESULT eBouquet::removeService(const eServiceReference &ref, bool renameBouquet)
 {
 	list::iterator it =
 		std::find(m_services.begin(), m_services.end(), ref);
 	if ( it == m_services.end() )
 		return -1;
-	if (ref.flags & eServiceReference::canDescent)
+	if (renameBouquet && (ref.flags & eServiceReference::canDescent))
 	{
 		std::string filename = ref.toString();
 		size_t pos = filename.find("FROM BOUQUET ");
@@ -189,7 +190,7 @@ RESULT eDVBService::getEvent(const eServiceReference &ref, ePtr<eServiceEvent> &
 	return eEPGCache::getInstance()->lookupEventTime(ref, start_time, ptr);
 }
 
-bool eDVBService::isCrypted(const eServiceReference &ref)
+bool eDVBService::isCrypted()
 {
 	return m_ca.size() > 0;
 }
@@ -197,16 +198,25 @@ bool eDVBService::isCrypted(const eServiceReference &ref)
 int eDVBService::isPlayable(const eServiceReference &ref, const eServiceReference &ignore, bool simulate)
 {
 	ePtr<eDVBResourceManager> res_mgr;
-	if ( eDVBResourceManager::getInstance( res_mgr ) )
+	bool remote_fallback_enabled = eConfigManager::getConfigBoolValue("config.usage.remote_fallback_enabled", false);
+
+	if (eDVBResourceManager::getInstance(res_mgr))
 		eDebug("isPlayble... no res manager!!");
 	else
 	{
 		eDVBChannelID chid, chid_ignore;
 		int system;
+
 		((const eServiceReferenceDVB&)ref).getChannelID(chid);
 		((const eServiceReferenceDVB&)ignore).getChannelID(chid_ignore);
-		return res_mgr->canAllocateChannel(chid, chid_ignore, system, simulate);
+
+		if (res_mgr->canAllocateChannel(chid, chid_ignore, system, simulate))
+			return 1;
+
+		if (remote_fallback_enabled)
+			return 2;
 	}
+
 	return 0;
 }
 
@@ -215,58 +225,74 @@ int eDVBService::checkFilter(const eServiceReferenceDVB &ref, const eDVBChannelQ
 	int res = 0;
 	switch (query.m_type)
 	{
-	case eDVBChannelQuery::tName:
-		res = m_service_name_sort == query.m_string;
-		break;
-	case eDVBChannelQuery::tProvider:
-		if (query.m_string == "Unknown" && m_provider_name.empty())
-			res = 1;
-		else
-			res = m_provider_name == query.m_string;
-		break;
-	case eDVBChannelQuery::tType:
-	{
-		int service_type = ref.getServiceType();
-		if (query.m_int == 1) // TV Service
+		case eDVBChannelQuery::tName:
 		{
-			// Hack for dish network
-			int onid = ref.getOriginalNetworkID().get();
-			if (onid >= 0x1001 && onid <= 0x100b)
-			{
-				static int dish_tv_types[] = { 128, 133, 137, 140, 144, 145, 150, 154, 163, 164, 165, 166, 167, 168, 173, 174 };
-				static size_t dish_tv_num_types = sizeof(dish_tv_types) / sizeof(int);
-				if (std::binary_search(dish_tv_types, dish_tv_types + dish_tv_num_types, service_type))
-					return true;
-			}
+			res = m_service_name_sort == query.m_string;
+			break;
 		}
-		res = service_type == query.m_int;
-		break;
-	}
-	case eDVBChannelQuery::tBouquet:
-		res = 0;
-		break;
-	case eDVBChannelQuery::tSatellitePosition:
-		res = ((unsigned int)ref.getDVBNamespace().get())>>16 == (unsigned int)query.m_int;
-		break;
-	case eDVBChannelQuery::tFlags:
-		res = (m_flags & query.m_int) == query.m_int;
-		break;
-	case eDVBChannelQuery::tChannelID:
-	{
-		eDVBChannelID chid;
-		ref.getChannelID(chid);
-		res = chid == query.m_channelid;
-		break;
-	}
-	case eDVBChannelQuery::tAND:
-		res = checkFilter(ref, *query.m_p1) && checkFilter(ref, *query.m_p2);
-		break;
-	case eDVBChannelQuery::tOR:
-		res = checkFilter(ref, *query.m_p1) || checkFilter(ref, *query.m_p2);
-		break;
-	case eDVBChannelQuery::tAny:
-		res = 1;
-		break;
+		case eDVBChannelQuery::tProvider:
+		{
+			if (query.m_string == "Unknown" && m_provider_name.empty())
+				res = 1;
+			else
+				res = m_provider_name == query.m_string;
+			break;
+		}
+		case eDVBChannelQuery::tType:
+		{
+			int service_type = ref.getServiceType();
+			if (query.m_int == 1) // TV Service
+			{
+				// Hack for dish network
+				int onid = ref.getOriginalNetworkID().get();
+				if (onid >= 0x1001 && onid <= 0x100b)
+				{
+					static int dish_tv_types[] = { 128, 133, 137, 140, 144, 145, 150, 154, 163, 164, 165, 166, 167, 168, 173, 174 };
+					static size_t dish_tv_num_types = sizeof(dish_tv_types) / sizeof(int);
+					if (std::binary_search(dish_tv_types, dish_tv_types + dish_tv_num_types, service_type))
+						return true;
+				}
+			}
+			res = service_type == query.m_int;
+			break;
+		}
+		case eDVBChannelQuery::tBouquet:
+		{
+			res = 0;
+			break;
+		}
+		case eDVBChannelQuery::tSatellitePosition:
+		{
+			res = ((unsigned int)ref.getDVBNamespace().get())>>16 == (unsigned int)query.m_int;
+			break;
+		}
+		case eDVBChannelQuery::tFlags:
+		{
+			res = (m_flags & query.m_int) == query.m_int;
+			break;
+		}
+		case eDVBChannelQuery::tChannelID:
+		{
+			eDVBChannelID chid;
+			ref.getChannelID(chid);
+			res = chid == query.m_channelid;
+			break;
+		}
+		case eDVBChannelQuery::tAND:
+		{
+			res = checkFilter(ref, *query.m_p1) && checkFilter(ref, *query.m_p2);
+			break;
+		}
+		case eDVBChannelQuery::tOR:
+		{
+			res = checkFilter(ref, *query.m_p1) || checkFilter(ref, *query.m_p2);
+			break;
+		}
+		case eDVBChannelQuery::tAny:
+		{
+			res = 1;
+			break;
+		}
 	}
 
 	if (query.m_inverse)
@@ -637,6 +663,19 @@ void eDVBDB::saveServicelist(const char *file)
 			case 1712000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_1_712MHz; break;
 			case 10000000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_10MHz; break;
 			}
+			if (ter.system == eDVBFrontendParametersTerrestrial::System_DVB_T_T2)
+			{
+				/*
+				 * System_DVB_T_T2 (T with fallback to T2) is used only when 'system' is not (yet) specified.
+				 * When storing a transponder with 'system' still equalling System_DVB_T_T2,
+				 * there has been no fallback to T2 (in which case 'system' would have been set to
+				 * System_DVB_T2).
+				 * So we are dealing with a T transponder, store it with System_DVB_T.
+				 * (fallback to T2 is only used while scanning, System_DVB_T_T2 should never be used for actual
+				 * transponders in the lamedb)
+				 */
+				ter.system = eDVBFrontendParametersTerrestrial::System_DVB_T;
+			}
 			fprintf(f, "\tt %d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 				ter.frequency, bandwidth, ter.code_rate_HP,
 				ter.code_rate_LP, ter.modulation, ter.transmission_mode,
@@ -743,115 +782,157 @@ void eDVBDB::loadBouquet(const char *path)
 	std::list<eServiceReference> &list = bouquet.m_services;
 	list.clear();
 
-	std::string p = eEnv::resolve("${sysconfdir}/enigma2/");
-	p+=path;
-	eDebug("loading bouquet... %s", p.c_str());
-	CFile fp(p.c_str(), "rt");
-	if (!fp)
+	int entries = 0;
+	std::string enigma_conf = eEnv::resolve("${sysconfdir}/enigma2/");
+	std::string file_path;
+	bool found = false;
+
+	static const char *const searchpath[] = { "alternatives", "bouquets", "", 0 };
+
+	for(int index = 0; searchpath[index]; index++)
 	{
-		eDebug("can't open %s: %m", p.c_str());
+		file_path = enigma_conf + searchpath[index] + "/" + path;
+
+		if (!access(file_path.c_str(), R_OK))
+		{
+			found = true;
+			break;
+		}
+	}
+
+	if(!found)
+	{
+		eDebug("can't open %s: %m", (enigma_conf + ".../" + path).c_str());
 		if (!strcmp(path, "bouquets.tv"))
 		{
+			file_path = enigma_conf + path;
+
 			eDebug("recreate bouquets.tv");
 			bouquet.m_bouquet_name="Bouquets (TV)";
 			bouquet.flushChanges();
 		}
-		else if (!strcmp(path, "bouquets.radio"))
+		else
 		{
-			eDebug("recreate bouquets.radio");
-			bouquet.m_bouquet_name="Bouquets (Radio)";
-			bouquet.flushChanges();
-		}
-		if (!userbouquetsfiles.size())
-			return;
-	}
-	int entries=0;
-	size_t linesize = 256;
-	char *line = (char*)malloc(linesize);
-	bool read_descr=false;
-	eServiceReference *e = NULL;
-	while (1)
-	{
-		int len;
-		if ((len = getline(&line, &linesize, fp)) < 2) break;
-		/* strip newline */
-		line[--len] = 0;
-		/* strip carriage return (when found) */
-		if (line[len - 1] == '\r') line[--len] = 0;
-		if (!strncmp(line, "#SERVICE", 8))
-		{
-			int offs = line[8] == ':' ? 10 : 9;
-			eServiceReference tmp(line+offs);
-			if ( tmp.flags&eServiceReference::canDescent )
+			if (!strcmp(path, "bouquets.radio"))
 			{
-				size_t pos = tmp.path.rfind('/');
-				char buf[256];
-				std::string path = tmp.path;
-				if ( pos != std::string::npos )
-					path.erase(0, pos+1);
-				if (path.empty())
+				file_path = enigma_conf + path;
+
+				eDebug("recreate bouquets.radio");
+				bouquet.m_bouquet_name="Bouquets (Radio)";
+				bouquet.flushChanges();
+			}
+			else
+				file_path = "";
+		}
+	}
+
+	eDebug("loading bouquet... %s", file_path.c_str());
+	CFile fp(file_path, "rt");
+
+	if (fp)
+	{
+		size_t linesize = 256;
+		char *line = (char*)malloc(linesize);
+		bool read_descr=false;
+		eServiceReference *e = NULL;
+		while (1)
+		{
+			int len;
+			if ((len = getline(&line, &linesize, fp)) < 2) break;
+			/* strip newline */
+			line[--len] = 0;
+			/* strip carriage return (when found) */
+			if (line[len - 1] == '\r') line[--len] = 0;
+			if (!strncmp(line, "#SERVICE", 8))
+			{
+				int offs = line[8] == ':' ? 10 : 9;
+				eServiceReference tmp(line+offs);
+				if ( tmp.flags&eServiceReference::canDescent )
 				{
-					eDebug("Bouquet load failed.. no filename given..");
-					continue;
-				}
-				pos = path.find("FROM BOUQUET ");
-				if (pos != std::string::npos)
-				{
-					char endchr = path[pos+13];
-					if (endchr != '"')
+					size_t pos = tmp.path.rfind('/');
+					char buf[256];
+					std::string path = tmp.path;
+					if ( pos != std::string::npos )
+						path.erase(0, pos+1);
+					if (path.empty())
 					{
-						eDebug("ignore invalid bouquet '%s' (only \" are allowed)",
-							tmp.toString().c_str());
+						eDebug("Bouquet load failed.. no filename given..");
 						continue;
 					}
-					char *beg = &path[pos+14];
-					char *end = strchr(beg, endchr);
-					path.assign(beg, end - beg);
-				}
-				else
-				{
-					snprintf(buf, sizeof(buf), "FROM BOUQUET \"%s\" ORDER BY bouquet", path.c_str());
-					tmp.path = buf;
-				}
-				for(unsigned int i=0; i<userbouquetsfiles.size(); ++i)
-				{
-					if (userbouquetsfiles[i].compare(path.c_str()) == 0)
+					pos = path.find("FROM BOUQUET ");
+					if (pos != std::string::npos)
 					{
-						userbouquetsfiles.erase(userbouquetsfiles.begin() + i);
-						break;
+						char endchr = path[pos+13];
+						if (endchr != '"')
+						{
+							eDebug("ignore invalid bouquet '%s' (only \" are allowed)",
+								tmp.toString().c_str());
+							continue;
+						}
+						char *beg = &path[pos+14];
+						char *end = strchr(beg, endchr);
+						path.assign(beg, end - beg);
 					}
+					else
+					{
+						snprintf(buf, sizeof(buf), "FROM BOUQUET \"%s\" ORDER BY bouquet", path.c_str());
+						tmp.path = buf;
+					}
+					for(unsigned int i=0; i<userbouquetsfiles.size(); ++i)
+					{
+						if (userbouquetsfiles[i].compare(path.c_str()) == 0)
+						{
+							userbouquetsfiles.erase(userbouquetsfiles.begin() + i);
+							break;
+						}
+					}
+					loadBouquet(path.c_str());
 				}
-				loadBouquet(path.c_str());
+				list.push_back(tmp);
+				e = &list.back();
+				read_descr=true;
+				++entries;
 			}
-			list.push_back(tmp);
-			e = &list.back();
-			read_descr=true;
-			++entries;
+			else if (read_descr && !strncmp(line, "#DESCRIPTION", 12))
+			{
+				int offs = line[12] == ':' ? 14 : 13;
+				e->name = line+offs;
+				read_descr=false;
+			}
+			else if (!strncmp(line, "#NAME ", 6))
+				bouquet.m_bouquet_name=line+6;
 		}
-		else if (read_descr && !strncmp(line, "#DESCRIPTION", 12))
-		{
-			int offs = line[12] == ':' ? 14 : 13;
-			e->name = line+offs;
-			read_descr=false;
-		}
-		else if (!strncmp(line, "#NAME ", 6))
-			bouquet.m_bouquet_name=line+6;
+		free(line);
 	}
-	free(line);
+
 	if (userbouquetsfiles.size())
 	{
 		for(unsigned int i=0; i<userbouquetsfiles.size(); ++i)
 		{
-			eDebug("Adding additional userbouquet %s", userbouquetsfiles[i].c_str());
-			char buf[256];
-			if (!strcmp(path, "bouquets.tv"))
-				snprintf(buf, sizeof(buf), "1:7:1:0:0:0:0:0:0:0:FROM BOUQUET \"%s\" ORDER BY bouquet", userbouquetsfiles[i].c_str());
+			if (m_load_unlinked_userbouquets)
+			{
+				eDebug("Adding additional userbouquet %s", userbouquetsfiles[i].c_str());
+				char buf[256];
+				if (!strcmp(path, "bouquets.tv"))
+					snprintf(buf, sizeof(buf), "1:7:1:0:0:0:0:0:0:0:FROM BOUQUET \"%s\" ORDER BY bouquet", userbouquetsfiles[i].c_str());
+				else
+					snprintf(buf, sizeof(buf), "1:7:2:0:0:0:0:0:0:0:FROM BOUQUET \"%s\" ORDER BY bouquet", userbouquetsfiles[i].c_str());
+				eServiceReference tmp(buf);
+				loadBouquet(userbouquetsfiles[i].c_str());
+				if (!strcmp(userbouquetsfiles[i].c_str(), "userbouquet.LastScanned.tv"))
+					list.push_back(tmp);
+				else
+					list.push_front(tmp);
+				++entries;
+			}
 			else
-				snprintf(buf, sizeof(buf), "1:7:2:0:0:0:0:0:0:0:FROM BOUQUET \"%s\" ORDER BY bouquet", userbouquetsfiles[i].c_str());
-			eServiceReference tmp(buf);
-			loadBouquet(userbouquetsfiles[i].c_str());
-			list.push_front(tmp);
-			++entries;
+			{
+				std::string filename = eEnv::resolve("${sysconfdir}/enigma2/" + userbouquetsfiles[i]);
+				std::string newfilename(filename);
+				newfilename.append(".del");
+				eDebug("Rename unlinked bouquet file %s to %s", filename.c_str(), newfilename.c_str());
+				rename(filename.c_str(), newfilename.c_str());
+			}
 		}
 		bouquet.flushChanges();
 	}
@@ -952,7 +1033,7 @@ eDVBDB *eDVBDB::instance;
 using namespace xmlcc;
 
 eDVBDB::eDVBDB()
-	: m_numbering_mode(false)
+	: m_numbering_mode(false), m_load_unlinked_userbouquets(true)
 {
 	instance = this;
 	reloadServicelist();
@@ -1529,7 +1610,7 @@ RESULT eDVBDB::addFlag(const eServiceReference &ref, unsigned int flagmask)
 		eServiceReferenceDVB &service = (eServiceReferenceDVB&)ref;
 		std::map<eServiceReferenceDVB, ePtr<eDVBService> >::iterator it(m_services.find(service));
 		if (it != m_services.end())
-			it->second->m_flags |= ~flagmask;
+			it->second->m_flags |= flagmask;
 		return 0;
 	}
 	return -1;

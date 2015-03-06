@@ -795,8 +795,6 @@ class ConfigInteger(ConfigSequence):
 class ConfigPIN(ConfigInteger):
 	def __init__(self, default, len = 4, censor = ""):
 		assert isinstance(default, int), "ConfigPIN default must be an integer"
-		if default == -1:
-			default = "aaaa"
 		ConfigSequence.__init__(self, seperator = ":", limits = [(0, (10**len)-1)], censor_char = censor, default = default)
 		self.len = len
 
@@ -1682,9 +1680,7 @@ class Config(ConfigSubsection):
 			print "Config: Couldn't write %s" % filename
 
 	def loadFromFile(self, filename, base_file=True):
-		f = open(filename, "r")
-		self.unpickle(f.readlines(), base_file)
-		f.close()
+		self.unpickle(open(filename, "r"), base_file)
 
 config = Config()
 config.misc = ConfigSubsection()
