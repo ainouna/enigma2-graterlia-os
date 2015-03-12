@@ -1334,7 +1334,9 @@ class ChannelSelectionBase(Screen):
 			self.servicelist.instance.moveSelection(self.servicelist.instance.pageDown)
 
 	def keyRecord(self):
-		return 0
+		ref = self.getCurrentSelection()
+		if ref and not(ref.flags & (eServiceReference.isMarker|eServiceReference.isDirectory)):
+			Screens.InfoBar.InfoBar.instance.instantRecord(serviceRef=ref)
 
 	def showFavourites(self):
 		if not self.pathChangeDisabled:
@@ -1530,11 +1532,6 @@ class ChannelSelection(ChannelSelectionBase, ChannelSelectionEdit, ChannelSelect
 		self.lastChannelRootTimer.callback.append(self.__onCreate)
 		self.lastChannelRootTimer.start(100,True)
 		self.pipzaptimer = eTimer()
-
-	def keyRecord(self):
-		ref = self.getCurrentSelection()
-		if ref and not(ref.flags & (eServiceReference.isMarker|eServiceReference.isDirectory)):
-			Screens.InfoBar.InfoBar.instance.instantRecord(serviceRef=ref)
 
 	def asciiOn(self):
 		rcinput = eRCInput.getInstance()
@@ -2112,6 +2109,9 @@ class SimpleChannelSelection(ChannelSelectionBase):
 
 	def saveRoot(self):
 		pass
+
+	def keyRecord(self):
+		return 0
 
 	def channelSelected(self): # just return selected service
 		ref = self.getCurrentSelection()
