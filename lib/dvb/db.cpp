@@ -637,11 +637,24 @@ void eDVBDB::saveServicelist(const char *file)
 			case 8000000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_8MHz; break;
 			case 7000000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_7MHz; break;
 			case 6000000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_6MHz; break;
+			default:
+			case 0: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_Auto; break;
 			case 5000000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_5MHz; break;
 			case 1712000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_1_712MHz; break;
 			case 10000000: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_10MHz; break;
-			default:
-			case 0: bandwidth = eDVBFrontendParametersTerrestrial::Bandwidth_Auto; break;
+			}
+			if (ter.system == eDVBFrontendParametersTerrestrial::System_DVB_T_T2)
+			{
+				/*
+				 * System_DVB_T_T2 (T with fallback to T2) is used only when 'system' is not (yet) specified.
+				 * When storing a transponder with 'system' still equalling System_DVB_T_T2,
+				 * there has been no fallback to T2 (in which case 'system' would have been set to
+				 * System_DVB_T2).
+				 * So we are dealing with a T transponder, store it with System_DVB_T.
+				 * (fallback to T2 is only used while scanning, System_DVB_T_T2 should never be used for actual
+				 * transponders in the lamedb)
+				 */
+				ter.system = eDVBFrontendParametersTerrestrial::System_DVB_T;
 			}
 			fprintf(f, "\tt %d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 				ter.frequency, bandwidth, ter.code_rate_HP,
