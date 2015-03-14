@@ -2,8 +2,8 @@
 	<map context="ListboxActions">
 		<key id="KEY_UP" mapto="moveUp" flags="mr" />
 		<key id="KEY_DOWN" mapto="moveDown" flags="mr" />
-		<key id="KEY_PAGEUP" mapto="pageUp" flags="mr" />
-		<key id="KEY_PAGEDOWN" mapto="pageDown" flags="mr" />
+		<key id="KEY_CHANNELUP" mapto="pageUp" flags="mr" />
+		<key id="KEY_CHANNELDOWN" mapto="pageDown" flags="mr" />
 		<key id="KEY_PREVIOUS" mapto="pageUp" flags="mr" />
 		<key id="KEY_NEXT" mapto="pageDown" flags="mr" />
 		<key id="KEY_LEFT" mapto="pageUp" flags="mr" />
@@ -50,7 +50,6 @@
 
 	<map context="InfobarEPGActions">
 		<key id="KEY_EPG" mapto="showEventInfo" flags="m" />
-		<!--key id="KEY_EPG" mapto="showEventInfoPlugin" flags="m" /-->
 	</map>
 
 	<map context="InfobarInstantRecord">
@@ -69,8 +68,8 @@
 	<map context="InfobarChannelSelection">
 		<key id="KEY_LEFT" mapto="keyLeft" flags="mr" />
 		<key id="KEY_RIGHT" mapto="keyRight" flags="mr" />
-		<key id="KEY_PAGEUP" mapto="keyChannelDown" flags="m" />
-		<key id="KEY_PAGEDOWN" mapto="keyChannelUp" flags="m" />
+		<key id="KEY_CHANNELUP" mapto="keyChannelDown" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="keyChannelUp" flags="m" />
 		<key id="KEY_UP" mapto="keyUp" flags="mr" />
 		<key id="KEY_DOWN" mapto="keyDown" flags="mr" />
 		<key id="KEY_REWIND" mapto="historyBack" flags="mr" />
@@ -158,8 +157,8 @@
 	</map>
 
 	<map context="InfobarSubserviceQuickzapActions">
-		<key id="KEY_PAGEUP" mapto="prevSubservice" flags="m" />
-		<key id="KEY_PAGEDOWN" mapto="nextSubservice" flags="m" />
+		<key id="KEY_CHANNELUP" mapto="prevSubservice" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="nextSubservice" flags="m" />
 		<key id="KEY_REWIND" mapto="prevSubservice" flags="m" />
 		<key id="KEY_FASTFORWARD" mapto="nextSubservice" flags="m" />
 		<key id="KEY_EXIT" mapto="exit" flags="m" />
@@ -252,8 +251,8 @@
 	<map context="MoviePlayerActions">
 		<key id="KEY_STOP" mapto="leavePlayer" flags="m" />
 		<key id="KEY_EXIT" mapto="leavePlayer" flags="m" />
-		<key id="KEY_PAGEUP" mapto="movePrev" flags="b" />
-		<key id="KEY_PAGEDOWN" mapto="moveNext" flags="b" />
+		<key id="KEY_CHANNELUP" mapto="movePrev" flags="b" />
+		<key id="KEY_CHANNELDOWN" mapto="moveNext" flags="b" />
 		<key id="KEY_EPG" mapto="EPGButtonPressed" flags="b" />
 		<key id="KEY_INFO" mapto="InfoButtonPressedLong" flags="l" />
 		<key id="KEY_EPG" mapto="EPGButtonPressedLong" flags="l" />
@@ -284,8 +283,8 @@
 		<key id="KEY_YELLOW" mapto="yellow" flags="m" />
 		<key id="KEY_RED" mapto="red" flags="m" />
 		<key id="KEY_BLUE" mapto="blue" flags="m" />
-		<key id="KEY_PAGEUP" mapto="zoomMode" flags="m" />
-		<key id="KEY_PAGEDOWN" mapto="screenMode" flags="m" />
+		<key id="KEY_CHANNELUP" mapto="zoomMode" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="screenMode" flags="m" />
 		<key id="KEY_HELP" mapto="hint" flags="m" />
 		<key id="KEY_MENU" mapto="menu" flags="m" />
 		<key id="KEY_TEXT" mapto="exit" flags="m" />
@@ -348,8 +347,8 @@
 		<key id="KEY_INFO" mapto="info" flags="m" />
 		<key id="KEY_EPG" mapto="info" flags="m" />
 		<key id="KEY_MENU" mapto="menu" flags="m" />
-		<key id="KEY_PAGEUP" mapto="nextBouquet" flags="m" />
-		<key id="KEY_PAGEDOWN" mapto="prevBouquet" flags="m" />
+		<key id="KEY_CHANNELUP" mapto="nextBouquet" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="prevBouquet" flags="m" />
 		<key id="KEY_REWIND" mapto="prevDay" flags="m" />
 		<key id="KEY_FASTFORWARD" mapto="nextDay" flags="m" />
 	</map>
@@ -467,8 +466,8 @@
 		<key id="KEY_RIGHT" mapto="right" flags="mr" />
 		<key id="KEY_EXIT" mapto="cancel" flags="m" />
 		<key id="KEY_OK" mapto="ok" flags="m" />
-		<key id="KEY_PAGEUP" mapto="size+" flags="mr" />
-		<key id="KEY_PAGEDOWN" mapto="size-" flags="mr" />
+		<key id="KEY_CHANNELUP" mapto="size+" flags="mr" />
+		<key id="KEY_CHANNELDOWN" mapto="size-" flags="mr" />
 	</map>
 
 	<map context="MediaPlayerActions">
@@ -479,15 +478,15 @@
 		<key id="KEY_MENU" mapto="menu" flags="m" />
 		<key id="KEY_2" mapto="skipListbegin" flags="m" />
 		<key id="KEY_8" mapto="skipListend" flags="m" />
-		<key id="KEY_PAGEUP" mapto="nextBouquet" flags="m" />
-		<key id="KEY_PAGEDOWN" mapto="prevBouquet" flags="m" />
+		<key id="KEY_CHANNELUP" mapto="nextBouquet" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="prevBouquet" flags="m" />
 	</map>
 
 	<map context="DVDPlayerActions">
 		<key id="KEY_MENU" mapto="dvdMenu" flags="m" />
 		<key id="KEY_INFO" mapto="toggleInfo" flags="m" />
-		<key id="KEY_PAGEUP" mapto="nextTitle" flags="m" />
-		<key id="KEY_PAGEDOWN" mapto="prevTitle" flags="m" />
+		<key id="KEY_CHANNELUP" mapto="nextTitle" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="prevTitle" flags="m" />
 	</map>
 
 	<map context="HotkeyActions">
@@ -532,12 +531,12 @@
 		<key id="KEY_SCREEN" mapto="activatePiP" flags="m"/>
 		<key id="KEY_PROGRAM" mapto="timer" flags="m"/>
 		<key id="KEY_PLAYPAUSE" mapto="play" flags="m" />
-		<key id="KEY_BOOKMARKS" mapto="portal" flags="m"/>
 		<key id="KEY_LIST" mapto="playlist" flags="m"/>
 		<key id="KEY_TIME" mapto="timeshift" flags="m"/>
 		<key id="KEY_SEARCH" mapto="search" flags="m"/>
 		<key id="KEY_RESTART" mapto="slow" flags="m"/>
 		<key id="KEY_BOOKMARKS" mapto="mark" flags="m"/>
+		<key id="KEY_EXIT" mapto="home" flags="m"/>
 		<key id="KEY_F1" mapto="f1" flags="b" />
 		<key id="KEY_F1" mapto="f1_long" flags="l" />
 		<key id="KEY_F2" mapto="f2" flags="b" />
