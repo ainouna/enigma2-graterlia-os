@@ -79,6 +79,7 @@ def getHotkeyFunctions():
 		if plugin.name not in twinPlugins and plugin.path:
 			hotkeyFunctions.append((plugin.name, plugin.path[24:]))
 			twinPlugins.append(plugin.name)
+	hotkeyFunctions.append((_("Toggle HDMI In"), "Infobar/HDMIIn"))
 	hotkeyFunctions.append(("--", "--"))
 	hotkeyFunctions.append((_("mainMenu"), "Infobar/mainMenu"))
 	hotkeyFunctions.append((_("showHelp"), "Infobar/showHelp"))
