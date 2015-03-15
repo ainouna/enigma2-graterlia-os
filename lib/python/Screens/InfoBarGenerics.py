@@ -336,18 +336,25 @@ class InfoBarShowHide(InfoBarScreenSaver):
 			self.toggleShow()
 
 	def toggleShow(self):
-		if self.__state == self.STATE_HIDDEN:
-			self.show()
-			if self.secondInfoBarScreen:
-				self.secondInfoBarScreen.hide()
-		elif config.usage.show_second_infobar.value == "EPG":
+		if config.usage.show_second_infobar.value == "EPG":
 			self.hide()
 			self.hideTimer.stop()
-			self.showDefaultEPG()
-		elif config.usage.show_second_infobar.value == "Event":
-			self.hide()
-			self.hideTimer.stop()
+			self.showSingleEPG()
+		elif config.usage.show_second_infobar.value:
+			if self.secondInfoBarScreen and not self.secondInfoBarScreen.shown and config.usage.show_second_infobar.value != "Event":
+				self.secondInfoBarScreen.show()
+				self.startHideTimer()
+			else:
+				self.hide()
+				self.hideTimer.stop()
+				self.openCurEventView()
+
+	def showSecondInfoBar(self):
+		if isStandardInfoBar(self) and config.usage.show_second_infobar.value == "EPG":
+			if not(hasattr(self, "hotkeyGlobal") and self.hotkeyGlobal("info") != 0):
+				self.showDefaultEPG()
 		elif self.secondInfoBarScreen and config.usage.show_second_infobar.value and not self.secondInfoBarScreen.shown:
+			self.show()
 			self.secondInfoBarScreen.show()
 			self.startHideTimer()
 		elif self.__state == self.STATE_SHOWN:
