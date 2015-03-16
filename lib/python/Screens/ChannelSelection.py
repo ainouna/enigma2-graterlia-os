@@ -138,7 +138,7 @@ class ChannelContextMenu(Screen):
 		self.parentalControlEnabled = config.ParentalControl.configured.value and config.ParentalControl.servicepinactive.value
 		if not (current_sel_path or current_sel_flags & (eServiceReference.isDirectory|eServiceReference.isMarker)):
 			append_when_current_valid(current, menu, (_("show transponder info"), self.showServiceInformations), level=2)
-		if csel.bouquet_mark_edit == OFF and not csel.movemode:
+		if csel.bouquet_mark_edit == OFF and not csel.entry_marked:
 			if not inBouquetRootList:
 				isPlayable = not (current_sel_flags & (eServiceReference.isMarker|eServiceReference.isDirectory))
 				if isPlayable:
@@ -207,7 +207,7 @@ class ChannelContextMenu(Screen):
 					self.removeFunction = self.removeBouquet
 		if self.inBouquet: # current list is editable?
 			if csel.bouquet_mark_edit == OFF:
-				if not csel.movemode:
+				if not csel.entry_marked:
 					append_when_current_valid(current, menu, (_("enable move mode"), self.toggleMoveMode), level=1, key="6")
 					if not inBouquetRootList and current_root and not (current_root.flags & eServiceReference.isGroup):
 						if current.type != -1:
@@ -398,7 +398,7 @@ class ChannelContextMenu(Screen):
 			self.close(closeBouquetSelection) # close bouquet selection
 
 	def renameEntry(self):
-		if self.inBouquet and self.csel.servicelist.getCurrent() and self.csel.servicelist.getCurrent().valid() and not self.csel.movemode:
+		if self.inBouquet and self.csel.servicelist.getCurrent() and self.csel.servicelist.getCurrent().valid() and not self.csel.entry_marked:
 			self.csel.renameEntry()
 			self.close()
 		else:
@@ -465,7 +465,7 @@ class ChannelContextMenu(Screen):
 
 	def findCurrentlyPlayed(self):
 		sel = self.csel.getCurrentSelection()
-		if sel and sel.valid() and not self.csel.movemode:
+		if sel and sel.valid() and not self.csel.entry_marked:
 			currentPlayingService = (hasattr(self.csel, "dopipzap") and self.csel.dopipzap) and self.session.pip.getCurrentService() or self.session.nav.getCurrentlyPlayingServiceOrGroup()
 			self.csel.servicelist.setCurrent(currentPlayingService, adjust=False)
 			if self.csel.getCurrentSelection() != currentPlayingService:
@@ -919,7 +919,6 @@ class ChannelSelectionEdit:
 			if self.entry_marked:
 				self.toggleMoveMarked() # unmark current entry
 			self.movemode = False
-			self.pathChangeDisabled = False # re-enable path change
 			self.mutableList.flushChanges() # FIXME add check if changes was made
 			self.mutableList = None
 			self.setTitle(self.saved_title)
@@ -929,7 +928,6 @@ class ChannelSelectionEdit:
 			self.mutableList = self.getMutableList()
 			self.movemode = True
 			select and self.toggleMoveMarked()
-			self.pathChangeDisabled = True # no path change allowed in movemode
 			self.saved_title = self.getTitle()
 			pos = self.saved_title.find(')')
 			self.setTitle(self.saved_title[:pos+1] + ' ' + _("[move mode]") + self.saved_title[pos+1:]);
@@ -999,8 +997,6 @@ class ChannelSelectionBase(Screen):
 
 		self.mode = MODE_TV
 		self.dopipzap = False
-
-		self.pathChangeDisabled = False
 
 		self["ChannelSelectBaseActions"] = NumberActionMap(["ChannelSelectBaseActions", "NumberActions", "InputAsciiActions"],
 			{
@@ -1196,7 +1192,8 @@ class ChannelSelectionBase(Screen):
 		return False
 
 	def showAllServices(self):
-		if not self.pathChangeDisabled:
+		if not self.entry_marked:
+			self.movemode and self.toggleMoveMode()
 			refstr = '%s ORDER BY name'%(self.service_types)
 			if not self.preEnterPath(refstr):
 				ref = eServiceReference(refstr)
@@ -1207,7 +1204,8 @@ class ChannelSelectionBase(Screen):
 					self.setCurrentSelectionAlternative(self.session.nav.getCurrentlyPlayingServiceOrGroup())
 
 	def showSatellites(self):
-		if not self.pathChangeDisabled:
+		if not self.entry_marked:
+			self.movemode and self.toggleMoveMode()
 			refstr = '%s FROM SATELLITES ORDER BY satellitePosition'%(self.service_types)
 			if not self.preEnterPath(refstr):
 				ref = eServiceReference(refstr)
@@ -1284,7 +1282,8 @@ class ChannelSelectionBase(Screen):
 								self.setCurrentSelectionAlternative(eServiceReference(refstr))
 
 	def showProviders(self):
-		if not self.pathChangeDisabled:
+		if not self.entry_marked:
+			self.movemode and self.toggleMoveMode()
 			refstr = '%s FROM PROVIDERS ORDER BY name'%(self.service_types)
 			if not self.preEnterPath(refstr):
 				ref = eServiceReference(refstr)
@@ -1304,7 +1303,8 @@ class ChannelSelectionBase(Screen):
 								self.setCurrentSelectionAlternative(eServiceReference(refstr))
 
 	def changeBouquet(self, direction):
-		if not self.pathChangeDisabled:
+		if not self.entry_marked:
+			self.movemode and self.toggleMoveMode()
 			if len(self.servicePath) > 1:
 				#when enter satellite root list we must do some magic stuff..
 				ref = eServiceReference('%s FROM SATELLITES ORDER BY satellitePosition'%(self.service_types))
@@ -1364,7 +1364,8 @@ class ChannelSelectionBase(Screen):
 			Screens.InfoBar.InfoBar.instance.instantRecord(serviceRef=ref)
 
 	def showFavourites(self):
-		if not self.pathChangeDisabled:
+		if not self.entry_marked:
+			self.movemode and self.toggleMoveMode()
 			if not self.preEnterPath(self.bouquet_rootstr):
 				if self.isBasePathEqual(self.bouquet_root):
 					self.pathUp()
