@@ -943,9 +943,11 @@ class ChannelSelectionEdit:
 		if self.entry_marked:
 			self.servicelist.setCurrentMarked(False)
 			self.entry_marked = False
+			self.pathChangeDisabled = False # re-enable path change
 		else:
 			self.servicelist.setCurrentMarked(True)
 			self.entry_marked = True
+			self.pathChangeDisabled = True # no path change allowed in movemod
 
 	def doContext(self):
 		self.session.openWithCallback(self.exitContext, ChannelContextMenu, self)
@@ -997,6 +999,7 @@ class ChannelSelectionBase(Screen):
 
 		self.mode = MODE_TV
 		self.dopipzap = False
+		pathChangeDisabled = False
 
 		self["ChannelSelectBaseActions"] = NumberActionMap(["ChannelSelectBaseActions", "NumberActions", "InputAsciiActions"],
 			{
@@ -1192,7 +1195,7 @@ class ChannelSelectionBase(Screen):
 		return False
 
 	def showAllServices(self):
-		if not self.entry_marked:
+		if not self.pathChangeDisabled:
 			self.movemode and self.toggleMoveMode()
 			refstr = '%s ORDER BY name'%(self.service_types)
 			if not self.preEnterPath(refstr):
@@ -1204,7 +1207,7 @@ class ChannelSelectionBase(Screen):
 					self.setCurrentSelectionAlternative(self.session.nav.getCurrentlyPlayingServiceOrGroup())
 
 	def showSatellites(self):
-		if not self.entry_marked:
+		if not self.pathChangeDisabled:
 			self.movemode and self.toggleMoveMode()
 			refstr = '%s FROM SATELLITES ORDER BY satellitePosition'%(self.service_types)
 			if not self.preEnterPath(refstr):
@@ -1282,7 +1285,7 @@ class ChannelSelectionBase(Screen):
 								self.setCurrentSelectionAlternative(eServiceReference(refstr))
 
 	def showProviders(self):
-		if not self.entry_marked:
+		if not self.pathChangeDisabled:
 			self.movemode and self.toggleMoveMode()
 			refstr = '%s FROM PROVIDERS ORDER BY name'%(self.service_types)
 			if not self.preEnterPath(refstr):
@@ -1303,7 +1306,7 @@ class ChannelSelectionBase(Screen):
 								self.setCurrentSelectionAlternative(eServiceReference(refstr))
 
 	def changeBouquet(self, direction):
-		if not self.entry_marked:
+		if not self.pathChangeDisabled:
 			self.movemode and self.toggleMoveMode()
 			if len(self.servicePath) > 1:
 				#when enter satellite root list we must do some magic stuff..
@@ -1364,7 +1367,7 @@ class ChannelSelectionBase(Screen):
 			Screens.InfoBar.InfoBar.instance.instantRecord(serviceRef=ref)
 
 	def showFavourites(self):
-		if not self.entry_marked:
+		if not self.pathChangeDisabled:
 			self.movemode and self.toggleMoveMode()
 			if not self.preEnterPath(self.bouquet_rootstr):
 				if self.isBasePathEqual(self.bouquet_root):
