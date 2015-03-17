@@ -1048,7 +1048,7 @@ class InfoBarEPG:
 				if self.serviceSel.selectService(ref):
 					self.epg_bouquet = current_path
 					self.session.openWithCallback(self.SingleServiceEPGClosed, EPGSelection, ref, self.zapToService, serviceChangeCB=self.changeServiceCB)
-				else
+				else:
 					self.session.openWithCallback(self.SingleServiceEPGClosed, EPGSelection, ref)
 			else:
 				self.session.open(EPGSelection, ref)
