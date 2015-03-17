@@ -62,7 +62,7 @@ class RemainingToText(Converter, object):
 		elif self.type == self.DEFAULT:
 			if remaining <= duration:
 				prefix = "+"
-			return "%s%d min" % (prefix, tsecs / 60)
+			return _("%s%d min") % (prefix, tsecs / 60)
 		else:
 			return "???"
 
