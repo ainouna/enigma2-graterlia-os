@@ -149,11 +149,11 @@
 	</map>
 
 	<map context="InfobarTimerButtonActions">
-		<key id="KEY_TIME" mapto="timerSelection" flags="m" />
+		<key id="KEY_TIME" mapto="timerSelection" flags="b" />
 	</map>
 
 	<map context="InfobarVmodeButtonActions">
-		<key id="KEY_VIDEO" mapto="vmodeSelection" flags="m" />
+		<key id="KEY_VIDEO" mapto="vmodeSelection" flags="b" />
 	</map>
 
 	<map context="InfobarSubserviceQuickzapActions">
