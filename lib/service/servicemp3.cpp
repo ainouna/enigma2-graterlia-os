@@ -1496,6 +1496,7 @@ int eServiceMP3::getInfo(int w)
 		tag = "has-crc";
 		break;
 #endif
+	case sBuffer: return m_bufferInfo.bufferPercent;
 	default:
 		return resNA;
 	}
