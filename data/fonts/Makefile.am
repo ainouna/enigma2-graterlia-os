@@ -7,4 +7,8 @@ dist_install_DATA = \
 	md_khmurabi_10.ttf \
 	nmsbd.ttf \
 	tuxtxt.ttf \
-	valis_enigma.ttf
+	valis_enigma.ttf \
+	verdana.ttf \
+	verdanab.ttf \
+	verdanai.ttf \
+	verdanaz.ttf
