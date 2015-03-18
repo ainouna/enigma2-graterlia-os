@@ -997,6 +997,8 @@ RESULT eServiceMP3::stop()
 #endif
 	m_state = stStopped;
 	m_nownext_timer->stop();
+	if (m_streamingsrc_timeout)
+		m_streamingsrc_timeout->stop();
 
 	return 0;
 }
