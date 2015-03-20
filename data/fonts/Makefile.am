@@ -1,3 +1,7 @@
+#
+# WARNING: If you modify the files installed here, change the version
+# number of the enigma2-fonts package in enigma2.bb.
+#
 installdir = $(datadir)/fonts
 
 dist_install_DATA = \
@@ -8,7 +12,7 @@ dist_install_DATA = \
 	nmsbd.ttf \
 	tuxtxt.ttf \
 	valis_enigma.ttf \
-	verdana.ttf \
-	verdanab.ttf \
-	verdanai.ttf \
-	verdanaz.ttf
+	LiberationSans-Bold.ttf \
+	LiberationSans-BoldItalic.ttf \
+	LiberationSans-Italic.ttf \
+	LiberationSans-Regular.ttf
