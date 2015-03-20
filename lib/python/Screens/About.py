@@ -11,7 +11,10 @@ from Components.Label import Label
 from Components.ProgressBar import ProgressBar
 
 from Tools.StbHardware import getFPVersion
-from enigma import eTimer
+from enigma import eTimer, eLabel
+
+from Components.HTMLComponent import HTMLComponent
+from Components.GUIComponent import GUIComponent
 
 class About(Screen):
 	def __init__(self, session):
@@ -227,6 +230,8 @@ class MemoryInfo(Screen):
 		self["slide"] = ProgressBar()
 		self["slide"].setValue(100)
 
+		self["params"] = MemoryInfoSkinParams()
+
 		self['info'] = Label(_("This info is for developers only.\nFor a normal users it is not important.\nDon't panic, please, when here will be displayed any suspicious informations!"))
 
 		self.setTitle(_("Memory Info"))
@@ -245,7 +250,7 @@ class MemoryInfo(Screen):
 					mem = int(size)
 				if "MemFree" in name:
 					free = int(size)
-				if i < 25:
+				if i < self["params"].rows_in_column:
 					ltext += "".join((name,"\n"))
 					lvalue += "".join((size," ",units,"\n"))
 				else:
@@ -269,3 +274,19 @@ class MemoryInfo(Screen):
 		system("sync")
 		system("echo 3 > /proc/sys/vm/drop_caches")
 		self.getMemoryInfo()
+
+class MemoryInfoSkinParams(HTMLComponent, GUIComponent):
+	def __init__(self):
+		GUIComponent.__init__(self)
+		self.rows_in_column = 25
+
+	def applySkin(self, desktop, screen):
+		if self.skinAttributes is not None:
+			attribs = [ ]
+			for (attrib, value) in self.skinAttributes:
+				if attrib == "rowsincolumn":
+					self.rows_in_column = int(value)
+			self.skinAttributes = attribs
+	return GUIComponent.applySkin(self, desktop, screen)
+
+	GUI_WIDGET = eLabel
