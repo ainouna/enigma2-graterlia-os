@@ -47,6 +47,7 @@ public:
 	void kill();
 
 	/* Call pthread_cancel, please don't do this. */
+	void abort_badly() { pthread_cancel(the_thread); }
 private:
 	pthread_t the_thread;
 

@@ -3058,7 +3058,7 @@ void eEPGCache::importEvents(ePyObject serviceReferences, ePyObject list)
 PyObject *eEPGCache::search(ePyObject arg)
 {
 	ePyObject ret;
-	std::deque<__32> descr;
+	std::deque<__u32> descr;
 	int eventid = -1;
 	const char *argstring=0;
 	char *refstr=0;
