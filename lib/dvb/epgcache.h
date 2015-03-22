@@ -103,6 +103,7 @@ typedef std::tr1::unordered_map<uniqueEPGKey, std::pair<eventMap, timeMap>, hash
 	typedef std::tr1::unordered_map<uniqueEPGKey, contentMap, hash_uniqueEPGKey, uniqueEPGKey::equal > contentMaps;
 #endif
 
+#endif
 #ifdef ENABLE_FREESAT
 #include <bitset>
 class freesatEITSubtableStatus
