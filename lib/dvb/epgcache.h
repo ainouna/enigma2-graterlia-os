@@ -79,12 +79,11 @@ struct uniqueEPGKey
 };
 
 //eventMap is sorted by event_id
-#define eventMap std::map<__u16, eventData*>
+typedef std::map<__u16, eventData*> eventMap;
 //timeMap is sorted by beginTime
-#define timeMap std::map<time_t, eventData*>
+typedef std::map<time_t, eventData*> timeMap;
 
-#define channelMapIterator std::map<iDVBChannel*, channel_data*>::iterator
-#define updateMap std::map<eDVBChannelID, time_t>
+typedef std::map<eDVBChannelID, time_t> updateMap;
 
 struct hash_uniqueEPGKey
 {
@@ -242,8 +241,10 @@ private:
 	friend class eventData;
 	static eEPGCache *instance;
 
+	typedef std::map<iDVBChannel*, channel_data*> ChannelMap;
+
 	ePtr<eTimer> cleanTimer;
-	std::map<iDVBChannel*, channel_data*> m_knownChannels;
+	ChannelMap m_knownChannels;
 	ePtr<eConnection> m_chanAddedConn;
 
 	unsigned int enabledSources;
