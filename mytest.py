@@ -22,6 +22,11 @@ from sys import stdout, exc_info
 
 profile("Bouquets")
 enigma.eDVBDB.getInstance().reloadBouquets()
+from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
+config.misc.load_unlinked_userbouquets = ConfigYesNo(default=True)
+def setLoadUnlinkedUserbouquets(configElement):
+	enigma.eDVBDB.getInstance().setLoadUnlinkedUserbouquets(configElement.value)
+config.misc.load_unlinked_userbouquets.addNotifier(setLoadUnlinkedUserbouquets)
 
 profile("ParentalControl")
 import Components.ParentalControl
@@ -35,7 +40,6 @@ from skin import readSkin
 
 profile("LOAD:Tools")
 from Tools.Directories import InitFallbackFiles, resolveFilename, SCOPE_PLUGINS, SCOPE_CURRENT_SKIN
-from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
 InitFallbackFiles()
 
 profile("config.misc")
