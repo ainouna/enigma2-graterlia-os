@@ -194,7 +194,7 @@ class eEPGCache: public eMainloop, private eThread, public Object
 		void readData(const __u8 *data, int source);
 		void startChannel();
 		void startEPG();
-		bool finishEPG();
+		void finishEPG();
 		void abortEPG();
 		void abortNonAvail();
 	};
