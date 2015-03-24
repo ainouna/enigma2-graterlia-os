@@ -739,12 +739,12 @@ class InfoBarChannelSelection:
 	def switchChannelUp(self):
 		if "keep" not in config.usage.servicelist_cursor_behavior.value:
 			self.servicelist.moveUp()
-		self.openServiceList()
+		self.session.execDialog(self.servicelist)
 
 	def switchChannelDown(self):
 		if "keep" not in config.usage.servicelist_cursor_behavior.value:
 			self.servicelist.moveDown()
-		self.openServiceList()
+		self.session.execDialog(self.servicelist)
 
 	def zapUp(self):
 		if self.servicelist.inBouquet():
@@ -795,7 +795,6 @@ class InfoBarChannelSelection:
 		self.openServiceList()
 
 	def openServiceList(self):
-		self.servicelist = self.session.instantiateDialog(ChannelSelection)
 		self.session.execDialog(self.servicelist)
 
 	def showFavourites(self):
