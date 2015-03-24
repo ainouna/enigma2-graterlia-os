@@ -13,7 +13,7 @@ class ServiceName(Converter, object):
 	PROVIDER = 1
 	REFERENCE = 2
 	EDITREFERENCE = 3
-TRANSPONDER = 4
+	TRANSPONDER = 4
 
 	def __init__(self, type):
 		Converter.__init__(self, type)
