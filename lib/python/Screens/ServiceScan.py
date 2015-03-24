@@ -102,7 +102,7 @@ class ServiceScan(Screen):
 			"menu": self.doCloseRecursive
 		}, -2)
 
-		self.setTitle("Service scan")
+		self.setTitle(_("Service scan"))
 		self.onFirstExecBegin.append(self.doServiceScan)
 
 	def doServiceScan(self):
