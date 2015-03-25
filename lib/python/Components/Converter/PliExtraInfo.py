@@ -142,15 +142,18 @@ class PliExtraInfo(Poll, Converter, object):
 		if onid < 0 : onid = 0
 		return "%d-%d:%05d:%04d:%04d:%04d" % (onid, tsid, sidpid, vpid, apid, pcrpid)
 
-	def createTransponderInfo(self, fedata, feraw):
-		if not feraw or not fedata:
-			return ""
-		if "DVB-T" in feraw.get("tuner_type"):
-			tmp = addspace(self.createChannelNumber(fedata, feraw)) + self.createFrequency(feraw) + "/" + self.createPolarization(fedata)
-		else:
-			tmp = addspace(self.createFrequency(feraw)) + addspace(self.createPolarization(fedata))
-		return addspace(self.createTunerSystem(fedata)) + tmp + addspace(self.createSymbolRate(fedata, feraw)) + addspace(self.createFEC(fedata, feraw)) \
-			+ addspace(self.createModulation(fedata)) + self.createOrbPos(feraw)
+	def createTransponderInfo(self, fedata, feraw, info):
+		if not feraw:
+			feraw = info.getInfoObject(iServiceInformation.sTransponderData)
+			fedata = ConvertToHumanReadable(feraw)
+		if feraw:
+			if "DVB-T" in feraw.get("tuner_type"):
+				tmp = addspace(self.createChannelNumber(fedata, feraw)) + addspace(self.createFrequency(feraw)) + addspace(self.createPolarization(fedata))
+			else:
+				tmp = addspace(self.createFrequency(feraw)) + addspace(self.createPolarization(fedata))
+			return addspace(self.createTunerSystem(fedata)) + tmp + addspace(self.createSymbolRate(fedata, feraw)) + addspace(self.createFEC(fedata, feraw)) \
+				+ addspace(self.createModulation(fedata)) + addspace(self.createOrbPos(feraw))
+		return ""
 
 	def createFrequency(self, feraw):
 		frequency = feraw.get("frequency")
