@@ -98,8 +98,8 @@ class PluginBrowser(Screen, ProtectedScreen):
 	def isProtected(self):
 		return config.ParentalControl.setuppinactive.value and not config.ParentalControl.config_sections.main_menu.value and config.ParentalControl.config_sections.plugin_browser.value
 
-		def exit(self):
-			self.close(True)
+	def exit(self):
+		self.close(True)
 
 	def saveListsize(self):
 		listsize = self["list"].instance.size()
