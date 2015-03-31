@@ -225,7 +225,7 @@ eDVBTeletextParser::eDVBTeletextParser(iDVBDemux *demux) : m_pid(-1)
 	setPageAndMagazine(-1, -1, "und");
 
 	if (demux->createPESReader(eApp, m_pes_reader))
-		eDebug("failed to create teletext subtitle PES reader!");
+		eDebug("TTX: failed to create teletext subtitle PES reader!");
 	else
 		m_pes_reader->connectRead(slot(*this, &eDVBTeletextParser::processData), m_read_connection);
 }
@@ -271,7 +271,7 @@ void eDVBTeletextParser::processPESPacket(__u8 *pkt, int len)
 
 		if (len < data_unit_length)
 		{
-			eDebug("data_unit_length > len");
+			eDebug("TTX: PES data_unit_length > len");
 			break;
 		}
 
@@ -364,7 +364,7 @@ void eDVBTeletextParser::processPESPacket(__u8 *pkt, int len)
 							continue;
 						}
 						else
-							eDebugNoNewLine("ignore unimplemented: ");
+							eDebugNoNewLineStart("TTX: ignore unimplemented mode: ");
 					}
 					else //0..39 means column 0..39
 					{
@@ -402,18 +402,17 @@ void eDVBTeletextParser::processPESPacket(__u8 *pkt, int len)
 									continue;
 								}
 								else
-									eDebugNoNewLine("ignore G2 char < 0x20: ");
+									eDebugNoNewLineStart("TTX: ignore G2 char < 0x20: ");
 							}
 							else
-								eDebugNoNewLine("ignore unimplemented: ");
+								eDebugNoNewLineStart("TTX: ignore unimplemented: ");
 						}
 						else
-							eDebugNoNewLine("row is not selected.. ignore: ");
+							eDebugNoNewLineStart("TTX: row is not selected.. ignore: ");
 					}
-					eDebugNoNewLine("triplet = %08x(%s) ", val, get_bits(val, 18));
-					eDebugNoNewLine("address = %02x(%s) ", addr, get_bits(addr, 6));
-					eDebugNoNewLine("mode = %02x(%s) ", mode, get_bits(mode, 5));
-					eDebug("data = %02x(%s)", data, get_bits(data, 7));
+					eDebugNoNewLine("triplet = %08x(%s) address = %02x(%s) mode = %02x(%s) data = %02x(%s)\n",
+							val, get_bits(val, 18), addr, get_bits(addr, 6),
+							mode, get_bits(mode, 5), data, get_bits(data, 7));
 				}
 			}
 		}
@@ -427,10 +426,10 @@ void eDVBTeletextParser::processPESPacket(__u8 *pkt, int len)
 				if ((m_M29_t1 & 0xF) == 0) // format1
 					m_M29_0_valid = 1;
 				else
-					eDebug("non handled packet M/%d/0 format %d", Y, m_M29_t1 & 0xF);
+					eDebug("TTX: non handled packet M/%d/0 format %d", Y, m_M29_t1 & 0xF);
 			}
 			else
-				eDebug("non handled packet M/%d/%d", Y, designation_code);
+				eDebug("TTX: non handled packet M/%d/%d", Y, designation_code);
 		}
 		else if (m_page_open && M == m_page_M)
 		{
@@ -442,10 +441,10 @@ void eDVBTeletextParser::processPESPacket(__u8 *pkt, int len)
 				if ((m_X28_t1 & 0xF) == 0) // format1
 					m_X28_0_valid = 1;
 				else
-					eDebug("non handled packet X/%d/0 format %d", Y, m_X28_t1 & 0xF);
+					eDebug("TTX: non handled packet X/%d/0 format %d", Y, m_X28_t1 & 0xF);
 			}
 			else
-				eDebug("non handled packet X/%d/%d", Y, designation_code);
+				eDebug("TTX: non handled packet X/%d/%d", Y, designation_code);
 		}
 	}
 }
@@ -558,7 +557,7 @@ void eDVBTeletextParser::handleLine(unsigned char *data, int len)
 			else if (b == 0xb)  // open box
 				++m_box_open;
 			else
-				eDebug("[ignore %x]", b);
+				eDebug("TTX: [ignore %x]", b);
 				/* ignore other attributes */
 		}
 		else
@@ -633,9 +632,9 @@ void eDVBTeletextParser::setPageAndMagazine(int page, int magazine, const char *
 	}
 
 	if (page > 0)
-		eDebug("enable teletext subtitle page %x%02x (%s)%d", magazine, page, lang, m_L);
+		eDebug("TTX: enable teletext subtitle page %x%02x (%s)%d", magazine, page, lang, m_L);
 	else
-		eDebug("disable teletext subtitles page %x%02x (%s)", magazine, page, lang);
+		eDebug("TTX: disable teletext subtitles page %x%02x (%s)", magazine, page, lang);
 	m_M29_0_valid = 0;
 	m_X28_0_valid = 0;
 	m_page_M = magazine; /* magazine to look for */
