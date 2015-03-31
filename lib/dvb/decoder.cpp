@@ -31,13 +31,13 @@ eDVBAudio::eDVBAudio(eDVBDemux *demux, int dev)
 	sprintf(filename, "/dev/dvb/adapter%d/audio%d", demux ? demux->adapter : 0, dev);
 	m_fd = ::open(filename, O_RDWR | O_CLOEXEC);
 	if (m_fd < 0)
-		eWarning("%s: %m", filename);
+		eWarning("[eDVBAudio] %s: %m", filename);
 	if (demux)
 	{
 		sprintf(filename, "/dev/dvb/adapter%d/demux%d", demux->adapter, demux->demux);
 		m_fd_demux = ::open(filename, O_RDWR | O_CLOEXEC);
 		if (m_fd_demux < 0)
-			eWarning("%s: %m", filename);
+			eWarning("[eDVBAudio] %s: %m", filename);
 	}
 	else
 	{
@@ -79,7 +79,7 @@ int eDVBAudio::startPid(int pid, int type)
 #else
 		pes.flags    = 0;
 #endif
-		eDebugNoNewLine("DMX_SET_PES_FILTER(0x%02x) - audio - ", pid);
+		eDebugNoNewLine("[eDVBAudio] DMX_SET_PES_FILTER(0x%02x) - audio - ", pid);
 		if (::ioctl(m_fd_demux, DMX_SET_PES_FILTER, &pes) < 0)
 		{
 			eDebug("failed (%m)");
@@ -87,7 +87,7 @@ int eDVBAudio::startPid(int pid, int type)
 		}
 		eDebug("ok");
 #if not defined(__sh__) // already startet cause of DMX_IMMEDIATE_START
-		eDebugNoNewLine("DEMUX_START - audio - ");
+		eDebugNoNewLine("[eDVBAudio] DEMUX_START - audio - ");
 		if (::ioctl(m_fd_demux, DMX_START) < 0)
 		{
 			eDebug("failed (%m)");
@@ -129,7 +129,7 @@ int eDVBAudio::startPid(int pid, int type)
 			break;
 		}
 
-		eDebugNoNewLine("AUDIO_SET_BYPASS(%d) - ", bypass);
+		eDebugNoNewLine("[eDVBAudio] AUDIO_SET_BYPASS(%d) - ", bypass);
 		if (::ioctl(m_fd, AUDIO_SET_BYPASS_MODE, bypass) < 0)
 			eDebug("failed (%m)");
 		else
@@ -137,7 +137,7 @@ int eDVBAudio::startPid(int pid, int type)
 #if not defined(__sh__) // this is a hack which only matters for dm drivers
 		freeze();  // why freeze here?!? this is a problem when only a pid change is requested... because of the unfreeze logic in Decoder::setState
 #endif
-		eDebugNoNewLine("AUDIO_PLAY - ");
+		eDebugNoNewLine("[eDVBAudio] AUDIO_PLAY - ");
 		if (::ioctl(m_fd, AUDIO_PLAY) < 0)
 			eDebug("failed (%m)");
 		else
@@ -148,9 +148,10 @@ int eDVBAudio::startPid(int pid, int type)
 
 void eDVBAudio::stop()
 {
+	eDebug("[eDVBAUDIO] AUDIO_STOP - audio%d", m_dev);
 	if (m_fd >= 0)
 	{
-		eDebugNoNewLine("AUDIO_STOP - ");
+		eDebugNoNewLine("[eDVBAUDIO] AUDIO_STOP - ");
 		if (::ioctl(m_fd, AUDIO_STOP) < 0)
 			eDebug("failed (%m)");
 		else
@@ -158,7 +159,7 @@ void eDVBAudio::stop()
 	}
 	if (m_fd_demux >= 0)
 	{
-		eDebugNoNewLine("DEMUX_STOP - audio - ");
+		eDebugNoNewLine("[eDVBAUDIO] DEMUX_STOP - audio - ");
 		if (::ioctl(m_fd_demux, DMX_STOP) < 0)
 			eDebug("failed (%m)");
 		else
