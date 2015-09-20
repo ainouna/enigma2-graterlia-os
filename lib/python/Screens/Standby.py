@@ -49,8 +49,9 @@ class Standby(Screen):
 
 		globalActionMap.setEnabled(False)
 
+		from Screens.InfoBar import InfoBar
+		self.infoBarInstance = InfoBar.instance
 		self.StandbyCounterIncrease = StandbyCounterIncrease
-
 		self.standbyTimeoutTimer = eTimer()
 		self.standbyTimeoutTimer.callback.append(self.standbyTimeout)
 		self.standbyStopServiceTimer = eTimer()
@@ -61,28 +62,26 @@ class Standby(Screen):
 		self.setMute()
 
 		self.paused_service = None
-		self.prev_running_service = None
 
 		self.prev_running_service = self.session.nav.getCurrentlyPlayingServiceOrGroup()
 		service = self.prev_running_service and self.prev_running_service.toString()
 		if service:
-			if service.startswith("1:") and service.rsplit(":", 1)[1].startswith("/"):
-				self.paused_service = self.session.current_dialog
-				self.paused_service.pauseService()
-			else:
-				self.timeHandler =  eDVBLocalTimeHandler.getInstance()
-				if self.timeHandler.ready():
-					if self.session.nav.getCurrentlyPlayingServiceOrGroup():
-						self.stopService()
-					else:
-						self.standbyStopServiceTimer.startLongTimer(5)
-					self.timeHandler = None
+			if service.rsplit(":", 1)[1].startswith("/"):
+				self.paused_service = True
+				self.infoBarInstance.pauseService()
+		if not self.paused_service:
+			self.timeHandler =  eDVBLocalTimeHandler.getInstance()
+			if self.timeHandler.ready():
+				if self.session.nav.getCurrentlyPlayingServiceOrGroup():
+					self.stopService()
 				else:
-					self.timeHandler.m_timeUpdated.get().append(self.stopService)
+					self.standbyStopServiceTimer.startLongTimer(5)
+				self.timeHandler = None
+			else:
+				self.timeHandler.m_timeUpdated.get().append(self.stopService)
 
 		if self.session.pipshown:
-			from Screens.InfoBar import InfoBar
-			InfoBar.instance and hasattr(InfoBar.instance, "showPiP") and InfoBar.instance.showPiP()
+			self.infoBarInstance and hasattr(self.infoBarInstance, "showPiP") and self.infoBarInstance.showPiP()
 
 		#set input to vcr scart
 		if SystemInfo["ScartSwitch"]:
@@ -104,7 +103,7 @@ class Standby(Screen):
 		self.standbyStopServiceTimer.stop()
 		self.timeHandler and self.timeHandler.m_timeUpdated.get().remove(self.stopService)
 		if self.paused_service:
-			self.paused_service.unPauseService()
+			self.infoBarInstance.unPauseService()
 		elif self.prev_running_service:
 			service = self.prev_running_service.toString()
 			if config.servicelist.startupservice_onstandby.value:
@@ -126,6 +125,7 @@ class Standby(Screen):
 			config.misc.standbyCounter.value += 1
 
 	def stopService(self):
+		self.prev_running_service = self.session.nav.getCurrentlyPlayingServiceOrGroup()
 		self.session.nav.stopService()
 
 	def createSummary(self):

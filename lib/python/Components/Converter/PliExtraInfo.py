@@ -4,10 +4,9 @@ from enigma import iServiceInformation, iPlayableService
 from Components.Converter.Converter import Converter
 from Components.Element import cached
 from Components.config import config
-from Tools.Transponder import ConvertToHumanReadable
+from Tools.Transponder import ConvertToHumanReadable, getChannelNumber
 from Tools.GetEcmInfo import GetEcmInfo
 from Poll import Poll
-from Components.Converter.ChannelNumbers import channelnumbers
 
 def addspace(text):
 	if text:
@@ -143,14 +142,14 @@ class PliExtraInfo(Poll, Converter, object):
 		return "%d-%d:%05d:%04d:%04d:%04d" % (onid, tsid, sidpid, vpid, apid, pcrpid)
 
 	def createTransponderInfo(self, fedata, feraw):
-		if not feraw or not fedata:
+		if not feraw:
 			return ""
-		if "DVB-T" in feraw.get("tuner_type"):
-			tmp = addspace(self.createChannelNumber(fedata, feraw)) + self.createFrequency(feraw) + "/" + self.createPolarization(fedata)
+		elif "DVB-T" in feraw.get("tuner_type"):
+			tmp = addspace(self.createChannelNumber(fedata, feraw)) + addspace(self.createFrequency(feraw)) + addspace(self.createPolarization(fedata))
 		else:
 			tmp = addspace(self.createFrequency(feraw)) + addspace(self.createPolarization(fedata))
 		return addspace(self.createTunerSystem(fedata)) + tmp + addspace(self.createSymbolRate(fedata, feraw)) + addspace(self.createFEC(fedata, feraw)) \
-			+ addspace(self.createModulation(fedata)) + self.createOrbPos(feraw)
+			+ addspace(self.createModulation(fedata)) + addspace(self.createOrbPos(feraw))
 
 	def createFrequency(self, feraw):
 		frequency = feraw.get("frequency")
@@ -162,10 +161,7 @@ class PliExtraInfo(Poll, Converter, object):
 		return ""
 
 	def createChannelNumber(self, fedata, feraw):
-		channel = channelnumbers.getChannelNumber(feraw.get("frequency"), feraw.get("tuner_number"))
-		if channel:
-			return _("CH") + "%s" % channel
-		return ""
+		return "DVB-T" in feraw.get("tuner_type") and fedata.get("channel") or ""
 
 	def createSymbolRate(self, fedata, feraw):
 		if "DVB-T" in feraw.get("tuner_type"):
@@ -179,10 +175,7 @@ class PliExtraInfo(Poll, Converter, object):
 		return ""
 
 	def createPolarization(self, fedata):
-		polarization = fedata.get("polarization_abbreviation")
-		if polarization:
-			return polarization
-		return ""
+		return fedata.get("polarization_abbreviation") or ""
 
 	def createFEC(self, fedata, feraw):
 		if "DVB-T" in feraw.get("tuner_type"):
@@ -208,16 +201,10 @@ class PliExtraInfo(Poll, Converter, object):
 		return ""
 
 	def createTunerType(self, feraw):
-		tunertype = feraw.get("tuner_type")
-		if tunertype:
-			return tunertype
-		return ""
+		return feraw.get("tuner_type") or ""
 
 	def createTunerSystem(self, fedata):
-		tunersystem = fedata.get("system")
-		if tunersystem:
-			return tunersystem
-		return ""
+		return fedata.get("system") or ""
 
 	def createOrbPos(self, feraw):
 		orbpos = feraw.get("orbital_position")
@@ -238,7 +225,6 @@ class PliExtraInfo(Poll, Converter, object):
 
 	@cached
 	def getText(self):
-
 		service = self.source.service
 		if service is None:
 			return ""
@@ -276,21 +262,27 @@ class PliExtraInfo(Poll, Converter, object):
 					self.fedata = ConvertToHumanReadable(self.feraw)
 
 		feraw = self.feraw
-		fedata = self.fedata
-
+		if not feraw:
+			feraw = info.getInfoObject(iServiceInformation.sTransponderData)
+			fedata = ConvertToHumanReadable(feraw)
+		else:
+			fedata = self.fedata
 
 		if self.type == "All":
 			self.getCryptoInfo(info)
 			if config.usage.show_cryptoinfo.value:
-				return addspace(self.createProviderName(info)) + self.createTransponderInfo(fedata,feraw) + "\n" \
+				return addspace(self.createProviderName(info)) + self.createTransponderInfo(fedata, feraw) + "\n" \
 				+ addspace(self.createCryptoBar(info)) + addspace(self.createCryptoSpecial(info)) + "\n" \
 				+ addspace(self.createPIDInfo(info)) + addspace(self.createVideoCodec(info)) + self.createResolution(info)
 			else:
-				return addspace(self.createProviderName(info)) + self.createTransponderInfo(fedata,feraw) + "\n" \
+				return addspace(self.createProviderName(info)) + self.createTransponderInfo(fedata, feraw) + "\n" \
 				+ addspace(self.createCryptoBar(info)) + self.current_source + "\n" \
 				+ addspace(self.createCryptoSpecial(info)) + addspace(self.createVideoCodec(info)) + self.createResolution(info)
 
-		if not feraw or not fedata:
+		if self.type == "PIDInfo":
+			return self.createPIDInfo(info)
+
+		if not feraw:
 			return ""
 
 		if self.type == "ServiceInfo":
@@ -299,7 +291,7 @@ class PliExtraInfo(Poll, Converter, object):
 			+ addspace(self.createVideoCodec(info)) + self.createResolution(info)
 
 		if self.type == "TransponderInfo":
-			return self.createTransponderInfo(fedata,feraw)
+			return self.createTransponderInfo(fedata, feraw)
 
 		if self.type == "TransponderFrequency":
 			return self.createFrequency(feraw)
@@ -327,9 +319,6 @@ class PliExtraInfo(Poll, Converter, object):
 
 		if self.type == "OrbitalPositionOrTunerSystem":
 			return self.createOrbPosOrTunerSystem(fedata,feraw)
-
-		if self.type == "PIDInfo":
-			return self.createPIDInfo(info)
 
 		if self.type == "TerrestrialChannelNumber":
 			return self.createChannelNumber(fedata, feraw)

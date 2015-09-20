@@ -12,6 +12,7 @@ import time
 def InitUsageConfig():
 	config.usage = ConfigSubsection()
 	config.usage.showdish = ConfigYesNo(default = True)
+	config.misc.showrotorposition = ConfigSelection(default = "no", choices = [("no", _("no")), ("yes", _("yes")), ("withtext", _("with text")), ("tunername", _("with tuner name"))])
 	config.usage.multibouquet = ConfigYesNo(default = True)
 
 	config.usage.alternative_number_mode = ConfigYesNo(default = False)
@@ -32,7 +33,7 @@ def InitUsageConfig():
 
 	choicelist = [("-1", _("Disable"))]
 	for i in range(0,1300,100):
-		choicelist.append(("%d" % i, ngettext("%d pixel wide", "%d pixels wide", i) % i))
+		choicelist.append((str(i), ngettext("%d pixel wide", "%d pixels wide", i) % i))
 	config.usage.servicelist_column = ConfigSelection(default="-1", choices=choicelist)
 	config.usage.servicelist_column.addNotifier(refreshServiceList)
 
@@ -50,7 +51,7 @@ def InitUsageConfig():
 	config.usage.e1like_radio_mode = ConfigYesNo(default = True)
 	choicelist = [("0", _("No timeout"))]
 	for i in range(1, 12):
-		choicelist.append(("%d" % i, ngettext("%d second", "%d seconds", i) % i))
+		choicelist.append((str(i), ngettext("%d second", "%d seconds", i) % i))
 	config.usage.infobar_timeout = ConfigSelection(default = "5", choices = choicelist)
 	config.usage.show_infobar_on_zap = ConfigYesNo(default = True)
 	config.usage.show_infobar_on_skip = ConfigYesNo(default = True)
@@ -67,13 +68,13 @@ def InitUsageConfig():
 	config.usage.enable_tt_caching = ConfigYesNo(default = True)
 	choicelist = []
 	for i in (10, 30):
-		choicelist.append(("%d" % i, ngettext("%d second", "%d seconds", i) % i))
+		choicelist.append((str(i), ngettext("%d second", "%d seconds", i) % i))
 	for i in (60, 120, 300, 600, 1200, 1800):
 		m = i / 60
-		choicelist.append(("%d" % i, ngettext("%d minute", "%d minutes", m) % m))
+		choicelist.append((str(i), ngettext("%d minute", "%d minutes", m) % m))
 	for i in (3600, 7200, 14400):
 		h = i / 3600
-		choicelist.append(("%d" % i, ngettext("%d hour", "%d hours", h) % h))
+		choicelist.append((str(i), ngettext("%d hour", "%d hours", h) % h))
 	config.usage.hdd_standby = ConfigSelection(default = "300", choices = [("0", _("No standby"))] + choicelist)
 	config.usage.output_12V = ConfigSelection(default = "do not change", choices = [
 		("do not change", _("Do not change")), ("off", _("Off")), ("on", _("On")) ])
@@ -86,7 +87,7 @@ def InitUsageConfig():
 	choicelist = [("-1", _("Disabled")), ("0", _("No timeout"))]
 	for i in [60, 300, 600, 900, 1800, 2700, 3600]:
 		m = i/60
-		choicelist.append(("%d" % i, ngettext("%d minute", "%d minutes", m) % m))
+		choicelist.append((str(i), ngettext("%d minute", "%d minutes", m) % m))
 	config.usage.pip_last_service_timeout = ConfigSelection(default = "0", choices = choicelist)
 
 	config.usage.default_path = ConfigText(default = resolveFilename(SCOPE_HDD))
@@ -134,47 +135,45 @@ def InitUsageConfig():
 	for i in range(3600, 21601, 3600):
 		h = abs(i / 3600)
 		h = ngettext("%d hour", "%d hours", h) % h
-		choicelist.append(("%d" % i, _("Standby in ") + h))
+		choicelist.append((str(i), _("Standby in ") + h))
 	config.usage.inactivity_timer = ConfigSelection(default = "0", choices = choicelist)
 	config.usage.inactivity_timer_blocktime = ConfigYesNo(default = True)
-	config.usage.inactivity_timer_blocktime_begin = ConfigClock(default = time.mktime((0, 0, 0, 6, 0, 0, 0, 0, 0)))
+	config.usage.inactivity_timer_blocktime_begin = ConfigClock(default = time.mktime((0, 0, 0, 18, 0, 0, 0, 0, 0)))
 	config.usage.inactivity_timer_blocktime_end = ConfigClock(default = time.mktime((0, 0, 0, 23, 0, 0, 0, 0, 0)))
+	config.usage.inactivity_timer_blocktime_extra = ConfigYesNo(default = False)
+	config.usage.inactivity_timer_blocktime_extra_begin = ConfigClock(default = time.mktime((0, 0, 0, 6, 0, 0, 0, 0, 0)))
+	config.usage.inactivity_timer_blocktime_extra_end = ConfigClock(default = time.mktime((0, 0, 0, 9, 0, 0, 0, 0, 0)))
 
 	choicelist = [("0", _("Disabled")),("event_standby", _("Standby after current event"))]
 	for i in range(900, 7201, 900):
 		m = abs(i / 60)
 		m = ngettext("%d minute", "%d minutes", m) % m
-		choicelist.append(("%d" % i, _("Standby in ") + m))
+		choicelist.append((str(i), _("Standby in ") + m))
 	config.usage.sleep_timer = ConfigSelection(default = "0", choices = choicelist)
 
 	choicelist = [("0", _("Disabled"))]
 	for i in [60, 300, 600] + range(900, 7201, 900):
 		m = abs(i / 60)
 		m = ngettext("%d minute", "%d minutes", m) % m
-		choicelist.append(("%d" % i, _("after ") + m))
+		choicelist.append((str(i), _("after ") + m))
 	config.usage.standby_to_shutdown_timer = ConfigSelection(default = "0", choices = choicelist)
 	config.usage.standby_to_shutdown_timer_blocktime = ConfigYesNo(default = True)
 	config.usage.standby_to_shutdown_timer_blocktime_begin = ConfigClock(default = time.mktime((0, 0, 0, 6, 0, 0, 0, 0, 0)))
 	config.usage.standby_to_shutdown_timer_blocktime_end = ConfigClock(default = time.mktime((0, 0, 0, 23, 0, 0, 0, 0, 0)))
 
 	choicelist = [("0", _("Disabled"))]
-	for i in (5, 30, 60, 300, 600, 900, 1200, 1800, 2700, 3600):
-		if i < 60:
-			m = ngettext("%d second", "%d seconds", i) % i
-		else:
-			m = abs(i / 60)
-			m = ngettext("%d minute", "%d minutes", m) % m
-		choicelist.append(("%d" % i, m))
-	config.usage.screen_saver = ConfigSelection(default = "60", choices = choicelist)
+	for m in (1, 5, 10, 15, 30, 60):
+		choicelist.append((str(m * 60), ngettext("%d minute", "%d minutes", m) % m))
+	config.usage.screen_saver = ConfigSelection(default = "300", choices = choicelist)
 
 	config.usage.check_timeshift = ConfigYesNo(default = True)
 
 	choicelist = [("0", _("Disabled"))]
 	for i in (2, 3, 4, 5, 10, 20, 30):
-		choicelist.append(("%d" % i, ngettext("%d second", "%d seconds", i) % i))
+		choicelist.append((str(i), ngettext("%d second", "%d seconds", i) % i))
 	for i in (60, 120, 300):
 		m = i / 60
-		choicelist.append(("%d" % i, ngettext("%d minute", "%d minutes", m) % m))
+		choicelist.append((str(i), ngettext("%d minute", "%d minutes", m) % m))
 	config.usage.timeshift_start_delay = ConfigSelection(default = "0", choices = choicelist)
 
 	config.usage.alternatives_priority = ConfigSelection(default = "0", choices = [
@@ -189,14 +188,35 @@ def InitUsageConfig():
 	config.usage.remote_fallback_enabled = ConfigYesNo(default = False);
 	config.usage.remote_fallback = ConfigText(default = "", fixed_size = False);
 
+	dvbs_nims = [("-2", _("Disabled"))]
+	dvbt_nims = [("-2", _("Disabled"))]
+	dvbc_nims = [("-2", _("Disabled"))]
 	nims = [("-1", _("auto"))]
 	for x in nimmanager.nim_slots:
+		if x.isCompatible("DVB-S"):
+			dvbs_nims.append((str(x.slot), x.getSlotName()))
+		elif x.isCompatible("DVB-T"):
+			dvbt_nims.append((str(x.slot), x.getSlotName()))
+		elif x.isCompatible("DVB-C"):
+			dvbc_nims.append((str(x.slot), x.getSlotName()))
 		nims.append((str(x.slot), x.getSlotName()))
 	config.usage.frontend_priority = ConfigSelection(default = "-1", choices = list(nims))
 	nims.insert(0,("-2", _("Disabled")))
 	config.usage.recording_frontend_priority = ConfigSelection(default = "-2", choices = nims)
-	config.misc.disable_background_scan = ConfigYesNo(default = False)
+	config.usage.frontend_priority_dvbs = ConfigSelection(default = "-2", choices = list(dvbs_nims))
+	dvbs_nims.insert(1,("-1", _("auto")))
+	config.usage.recording_frontend_priority_dvbs = ConfigSelection(default = "-2", choices = dvbs_nims)
+	config.usage.frontend_priority_dvbt = ConfigSelection(default = "-2", choices = list(dvbt_nims))
+	dvbt_nims.insert(1,("-1", _("auto")))
+	config.usage.recording_frontend_priority_dvbt = ConfigSelection(default = "-2", choices = dvbt_nims)
+	config.usage.frontend_priority_dvbc = ConfigSelection(default = "-2", choices = list(dvbc_nims))
+	dvbc_nims.insert(1,("-1", _("auto")))
+	config.usage.recording_frontend_priority_dvbc = ConfigSelection(default = "-2", choices = dvbc_nims)
+	SystemInfo["DVB-S_priority_tuner_available"] = len(dvbs_nims) > 3 and (len(dvbt_nims) > 2 or len(dvbc_nims) > 2)
+	SystemInfo["DVB-T_priority_tuner_available"] = len(dvbt_nims) > 3 and (len(dvbs_nims) > 2 or len(dvbc_nims) > 2)
+	SystemInfo["DVB-C_priority_tuner_available"] = len(dvbc_nims) > 3 and (len(dvbs_nims) > 2 or len(dvbt_nims) > 2)
 
+	config.misc.disable_background_scan = ConfigYesNo(default = False)
 	config.usage.show_event_progress_in_servicelist = ConfigSelection(default = 'barright', choices = [
 		('barleft', _("Progress bar left")),
 		('barright', _("Progress bar right")),
@@ -386,7 +406,7 @@ def InitUsageConfig():
 			open(SystemInfo["VFD_scroll_repeats"], "w").write(el.value)
 		choicelist = []
 		for i in range(1, 11, 1):
-			choicelist.append(("%d" % i))
+			choicelist.append((str(i)))
 		config.usage.vfd_scroll_repeats = ConfigSelection(default = "3", choices = choicelist)
 		config.usage.vfd_scroll_repeats.addNotifier(scroll_repeats, immediate_feedback = False)
 
@@ -395,7 +415,7 @@ def InitUsageConfig():
 			open(SystemInfo["VFD_scroll_delay"], "w").write(el.value)
 		choicelist = []
 		for i in range(0, 1001, 50):
-			choicelist.append(("%d" % i))
+			choicelist.append((str(i)))
 		config.usage.vfd_scroll_delay = ConfigSelection(default = "150", choices = choicelist)
 		config.usage.vfd_scroll_delay.addNotifier(scroll_delay, immediate_feedback = False)
 
@@ -404,7 +424,7 @@ def InitUsageConfig():
 			open(SystemInfo["VFD_initial_scroll_delay"], "w").write(el.value)
 		choicelist = []
 		for i in range(0, 20001, 500):
-			choicelist.append(("%d" % i))
+			choicelist.append((str(i)))
 		config.usage.vfd_initial_scroll_delay = ConfigSelection(default = "1000", choices = choicelist)
 		config.usage.vfd_initial_scroll_delay.addNotifier(initial_scroll_delay, immediate_feedback = False)
 
@@ -413,7 +433,7 @@ def InitUsageConfig():
 			open(SystemInfo["VFD_final_scroll_delay"], "w").write(el.value)
 		choicelist = []
 		for i in range(0, 20001, 500):
-			choicelist.append(("%d" % i))
+			choicelist.append((str(i)))
 		config.usage.vfd_final_scroll_delay = ConfigSelection(default = "1000", choices = choicelist)
 		config.usage.vfd_final_scroll_delay.addNotifier(final_scroll_delay, immediate_feedback = False)
 
@@ -429,13 +449,14 @@ def InitUsageConfig():
 	config.subtitles.colourise_dialogs = ConfigYesNo(default = False)
 	config.subtitles.subtitle_borderwidth = ConfigSelection(choices = ["1", "2", "3", "4", "5"], default = "3")
 	config.subtitles.subtitle_fontsize  = ConfigSelection(choices = ["%d" % x for x in range(16,101) if not x % 2], default = "40")
+	config.subtitles.showbackground = ConfigYesNo(default = False)
 
 	subtitle_delay_choicelist = []
 	for i in range(-900000, 1845000, 45000):
 		if i == 0:
 			subtitle_delay_choicelist.append(("0", _("No delay")))
 		else:
-			subtitle_delay_choicelist.append(("%d" % i, "%2.1f sec" % (i / 90000.)))
+			subtitle_delay_choicelist.append((str(i), "%2.1f sec" % (i / 90000.)))
 	config.subtitles.subtitle_noPTSrecordingdelay = ConfigSelection(default = "315000", choices = subtitle_delay_choicelist)
 
 	config.subtitles.dvb_subtitles_yellow = ConfigYesNo(default = False)
@@ -494,7 +515,7 @@ def InitUsageConfig():
 		("ltz", _("Luxembourgish")),
 		("nor", _("Norwegian")),
 		("pol", _("Polish")),
-		("por", _("Portuguese")),
+		("por dub", _("Portuguese")),
 		("fas per", _("Persian")),
 		("ron rum", _("Romanian")),
 		("rus", _("Russian")),

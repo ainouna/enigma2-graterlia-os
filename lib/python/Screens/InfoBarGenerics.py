@@ -1043,7 +1043,7 @@ class InfoBarEPG:
 	def showEventInfoPlugins(self):
 		pluginlist = self.getEPGPluginList()
 		if pluginlist:
-			self.session.openWithCallback(self.EventInfoPluginChosen, ChoiceBox, title=_("Please choose an extension..."), list = pluginlist, skin_name = "EPGExtensionsList")
+			self.session.openWithCallback(self.EventInfoPluginChosen, ChoiceBox, title=_("Please choose an extension..."), list=pluginlist, skin_name="EPGExtensionsList", reorderConfig="eventinfo_order")
 		else:
 			self.openSingleServiceEPG()
 
@@ -2011,7 +2011,7 @@ class InfoBarExtensions:
 		list.extend([(x[0](), x) for x in extensionsList])
 
 		keys += [""] * len(extensionsList)
-		self.session.openWithCallback(self.extensionCallback, ChoiceBox, title=_("Please choose an extension..."), list = list, keys = keys, skin_name = "ExtensionsList")
+		self.session.openWithCallback(self.extensionCallback, ChoiceBox, title=_("Please choose an extension..."), list=list, keys=keys, skin_name="ExtensionsList", reorderConfig="extension_order")
 
 	def extensionCallback(self, answer):
 		if answer is not None:
@@ -2122,13 +2122,13 @@ class InfoBarPiP:
 			slist.togglePipzap()
 			if slist.dopipzap:
 				currentServicePath = slist.getCurrentServicePath()
-				self.servicelist.setCurrentServicePath(self.session.pip.servicePath, doZap=False)
+				slist.setCurrentServicePath(self.session.pip.servicePath, doZap=False)
 				self.session.pip.servicePath = currentServicePath
 
 	def showPiP(self):
 		self.lastPiPServiceTimeoutTimer.stop()
+		slist = self.servicelist
 		if self.session.pipshown:
-			slist = self.servicelist
 			if slist and slist.dopipzap:
 				self.togglePipzap()
 			if self.session.pipshown:
@@ -2144,15 +2144,15 @@ class InfoBarPiP:
 		else:
 			self.session.pip = self.session.instantiateDialog(PictureInPicture)
 			self.session.pip.show()
-			newservice = self.lastPiPService or self.session.nav.getCurrentlyPlayingServiceReference() or self.servicelist.servicelist.getCurrent()
+			newservice = self.lastPiPService or self.session.nav.getCurrentlyPlayingServiceReference() or (slist and slist.servicelist.getCurrent())
 			if self.session.pip.playService(newservice):
 				self.session.pipshown = True
-				self.session.pip.servicePath = self.servicelist.getCurrentServicePath()
+				self.session.pip.servicePath = slist and slist.getCurrentServicePath()
 			else:
-				newservice = self.session.nav.getCurrentlyPlayingServiceReference() or self.servicelist.servicelist.getCurrent()
+				newservice = self.session.nav.getCurrentlyPlayingServiceReference() or (slist and slist.servicelist.getCurrent())
 				if self.session.pip.playService(newservice):
 					self.session.pipshown = True
-					self.session.pip.servicePath = self.servicelist.getCurrentServicePath()
+					self.session.pip.servicePath = slist and slist.getCurrentServicePath()
 				else:
 					self.session.pipshown = False
 					del self.session.pip
@@ -2182,16 +2182,19 @@ class InfoBarPiP:
 			swapservice = self.session.nav.getCurrentlyPlayingServiceOrGroup()
 			pipref = self.session.pip.getCurrentService()
 			if swapservice and pipref and pipref.toString() != swapservice.toString():
-				currentServicePath = self.servicelist.getCurrentServicePath()
-				currentBouquet = self.servicelist and self.servicelist.getRoot()
-				self.servicelist.setCurrentServicePath(self.session.pip.servicePath, doZap=False)
+				slist = self.servicelist
+				if slist:
+					currentServicePath = slist.getCurrentServicePath()
+					currentBouquet = slist.getRoot()
+					slist.setCurrentServicePath(self.session.pip.servicePath, doZap=False)
 				self.session.pip.playService(swapservice)
 				self.session.nav.playService(pipref, checkParentalControl=False, adjust=False)
-				self.session.pip.servicePath = currentServicePath
-				self.session.pip.servicePath[1] = currentBouquet
-				if self.servicelist.dopipzap:
+				if slist:
+					self.session.pip.servicePath = currentServicePath
+					self.session.pip.servicePath[1] = currentBouquet
+				if slist and slist.dopipzap:
 					# This unfortunately won't work with subservices
-					self.servicelist.setCurrentSelection(self.session.pip.getCurrentService())
+					slist.setCurrentSelection(self.session.pip.getCurrentService())
 
 	def movePiP(self):
 		if self.pipShown():
@@ -2226,10 +2229,43 @@ class InfoBarInstantRecord:
 			if InfoBarInstance:
 				self.recording = InfoBarInstance.recording
 
+	def moveToTrash(self, entry):
+		print "instantRecord stop and delete recording: ", entry.name
+		import Tools.Trashcan
+		trash = Tools.Trashcan.createTrashFolder(entry.Filename)
+		from MovieSelection import moveServiceFiles
+		moveServiceFiles(entry.Filename, trash, entry.name, allowCopy=False)
+
 	def stopCurrentRecording(self, entry = -1):
+		def confirm(answer=False):
+			if answer:
+				self.session.nav.RecordTimer.removeEntry(self.recording[entry])
+				if self.deleteRecording:
+					self.moveToTrash(self.recording[entry])
+				self.recording.remove(self.recording[entry])
 		if entry is not None and entry != -1:
-			self.session.nav.RecordTimer.removeEntry(self.recording[entry])
-			self.recording.remove(self.recording[entry])
+			msg =  _("Stop recording:")
+			if self.deleteRecording:
+				msg = _("Stop and delete recording:")
+			msg += "\n"
+			msg += " - " + self.recording[entry].name + "\n"
+			self.session.openWithCallback(confirm, MessageBox, msg, MessageBox.TYPE_YESNO)
+
+	def stopAllCurrentRecordings(self, list):
+		def confirm(answer=False):
+			if answer:
+				for entry in list:
+					self.session.nav.RecordTimer.removeEntry(entry[0])
+					self.recording.remove(entry[0])
+					if self.deleteRecording:
+						self.moveToTrash(entry[0])
+		msg =  _("Stop recordings:")
+		if self.deleteRecording:
+			msg = _("Stop and delete recordings:")
+		msg += "\n"
+		for entry in list:
+			msg += " - " + entry[0].name + "\n"
+		self.session.openWithCallback(confirm, MessageBox, msg, MessageBox.TYPE_YESNO)
 
 	def getProgramInfoAndEvent(self, info, name):
 		info["serviceref"] = hasattr(self, "SelectedInstantServiceRef") and self.SelectedInstantServiceRef or self.session.nav.getCurrentlyPlayingServiceOrGroup()
@@ -2331,11 +2367,17 @@ class InfoBarInstantRecord:
 			elif x.dontSave and x.isRunning():
 				list.append((x, False))
 
+		self.deleteRecording = False
 		if answer[1] == "changeduration":
 			if len(self.recording) == 1:
 				self.changeDuration(0)
 			else:
 				self.session.openWithCallback(self.changeDuration, TimerSelection, list)
+		elif answer[1] == "addrecordingtime":
+			if len(self.recording) == 1:
+				self.addRecordingTime(0)
+			else:
+				self.session.openWithCallback(self.addRecordingTime, TimerSelection, list)
 		elif answer[1] == "changeendtime":
 			if len(self.recording) == 1:
 				self.setEndtime(0)
@@ -2345,7 +2387,21 @@ class InfoBarInstantRecord:
 			import TimerEdit
 			self.session.open(TimerEdit.TimerEditList)
 		elif answer[1] == "stop":
-			self.session.openWithCallback(self.stopCurrentRecording, TimerSelection, list)
+			if len(self.recording) == 1:
+				self.stopCurrentRecording(0)
+			else:
+				self.session.openWithCallback(self.stopCurrentRecording, TimerSelection, list)
+		elif answer[1] == "stopdelete":
+			self.deleteRecording = True
+			if len(self.recording) == 1:
+				self.stopCurrentRecording(0)
+			else:
+				self.session.openWithCallback(self.stopCurrentRecording, TimerSelection, list)
+		elif answer[1] == "stopall":
+			self.stopAllCurrentRecordings(list)
+		elif answer[1] == "stopdeleteall":
+			self.deleteRecording = True
+			self.stopAllCurrentRecordings(list)
 		elif answer[1] in ( "indefinitely" , "manualduration", "manualendtime", "event"):
 			self.startInstantRecording(limitEvent = answer[1] in ("event", "manualendtime") or False)
 			if answer[1] == "manualduration":
@@ -2386,8 +2442,22 @@ class InfoBarInstantRecord:
 			self.selectedEntry = entry
 			self.session.openWithCallback(self.inputCallback, InputBox, title=_("How many minutes do you want to record?"), text="5", maxSize=False, type=Input.NUMBER)
 
+	def addRecordingTime(self, entry):
+		if entry is not None and entry >= 0:
+			self.selectedEntry = entry
+			self.session.openWithCallback(self.inputAddRecordingTime, InputBox, title=_("How many minutes do you want add to record?"), text="5", maxSize=False, type=Input.NUMBER)
+
+	def inputAddRecordingTime(self, value):
+		if value:
+			print "added", int(value), "minutes for recording."
+			entry = self.recording[self.selectedEntry]
+			if int(value) != 0:
+				entry.autoincrease = False
+			entry.end += 60 * int(value)
+			self.session.nav.RecordTimer.timeChanged(entry)
+
 	def inputCallback(self, value):
-		if value is not None:
+		if value:
 			print "stopping recording after", int(value), "minutes."
 			entry = self.recording[self.selectedEntry]
 			if int(value) != 0:
@@ -2425,9 +2495,17 @@ class InfoBarInstantRecord:
 			common = ()
 		if self.isInstantRecordRunning():
 			title =_("A recording is currently running.\nWhat do you want to do?")
-			list = ((_("Stop recording"), "stop"),) + common + \
+			list = common + \
 				((_("Change recording (duration)"), "changeduration"),
+				(_("Change recording (add time)"), "addrecordingtime"),
 				(_("Change recording (endtime)"), "changeendtime"),)
+			list += ((_("Stop recording"), "stop"),)
+			if config.usage.movielist_trashcan.value:
+				list += ((_("Stop and delete recording"), "stopdelete"),)
+			if len(self.recording) > 1:
+				list += ((_("Stop all current recordings"), "stopall"),)
+				if config.usage.movielist_trashcan.value:
+					list += ((_("Stop and delete all current recordings"), "stopdeleteall"),)
 			if self.isTimerRecordRunning():
 				list += ((_("Stop timer recording"), "timer"),)
 			list += ((_("Do nothing"), "no"),)
@@ -3171,7 +3249,10 @@ class InfoBarPowersaver:
 				curtime = (curtime.tm_hour, curtime.tm_min, curtime.tm_sec)
 				begintime = tuple(config.usage.inactivity_timer_blocktime_begin.value)
 				endtime = tuple(config.usage.inactivity_timer_blocktime_end.value)
-				if begintime <= endtime and (curtime >= begintime and curtime < endtime) or begintime > endtime and (curtime >= begintime or curtime < endtime):
+				begintime_extra = tuple(config.usage.inactivity_timer_blocktime_extra_begin.value)
+				endtime_extra = tuple(config.usage.inactivity_timer_blocktime_extra_end.value)
+				if begintime <= endtime and (curtime >= begintime and curtime < endtime) or begintime > endtime and (curtime >= begintime or curtime < endtime) or config.usage.inactivity_timer_blocktime_extra.value and\
+				(begintime_extra <= endtime_extra and (curtime >= begintime_extra and curtime < endtime_extra) or begintime_extra > endtime_extra and (curtime >= begintime_extra or curtime < endtime_extra)):
 					duration = (endtime[0]*3600 + endtime[1]*60) - (curtime[0]*3600 + curtime[1]*60 + curtime[2])
 					if duration:
 						if duration < 0:

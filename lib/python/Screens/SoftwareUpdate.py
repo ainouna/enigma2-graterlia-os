@@ -1,5 +1,6 @@
 from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
+from Screens.ParentalControlSetup import ProtectedScreen
 from Screens.Screen import Screen
 from Screens.Standby import TryQuitMainloop
 from Screens.TextBox import TextBox
@@ -10,6 +11,7 @@ from Components.Ipkg import IpkgComponent
 from Components.Sources.StaticText import StaticText
 from Components.Slider import Slider
 from Tools.BoundFunction import boundFunction
+from Tools.Directories import fileExists
 from enigma import eTimer, getBoxType, eDVBDB
 from urllib import urlopen
 import socket
@@ -17,7 +19,7 @@ import os
 import re
 import time
 
-class UpdatePlugin(Screen):
+class UpdatePlugin(Screen, ProtectedScreen):
 	skin = """
 		<screen name="UpdatePlugin" position="center,center" size="550,300">
 			<widget name="activityslider" position="0,0" size="550,5"  />
@@ -28,6 +30,7 @@ class UpdatePlugin(Screen):
 
 	def __init__(self, session, *args):
 		Screen.__init__(self, session)
+		ProtectedScreen.__init__(self)
 
 		self.sliderPackages = { "dreambox-dvb-modules": 1, "enigma2": 2, "tuxbox-image-info": 3 }
 
@@ -66,6 +69,11 @@ class UpdatePlugin(Screen):
 		self.activityTimer.callback.append(self.doActivityTimer)
 		self.activityTimer.start(100, True)
 
+	def isProtected(self):
+		return config.ParentalControl.setuppinactive.value and\
+			(not config.ParentalControl.config_sections.main_menu.value and not config.ParentalControl.config_sections.configuration.value  or hasattr(self.session, 'infobar') and self.session.infobar is None) and\
+			config.ParentalControl.config_sections.software_update.value
+
 	def checkTraficLight(self):
 
 		self.activityTimer.callback.remove(self.checkTraficLight)
@@ -79,7 +87,7 @@ class UpdatePlugin(Screen):
 		try:
 			# TODO: Use Twisted's URL fetcher, urlopen is evil. And it can
 			# run in parallel to the package update.
-			status = urlopen("http://openpli.org/status").read().split('!', 1)
+			status = urlopen("http://openpli.org/status/").read().split('!', 1)
 			if getBoxType() in status[0].split(','):
 				message = len(status) > 1 and status[1] or _("The current beta image might not be stable.\nFor more information see %s.") % ("www.openpli.org")
 				picon = MessageBox.TYPE_ERROR
@@ -191,18 +199,23 @@ class UpdatePlugin(Screen):
 						message = _("Do you want to update your receiver to %s?") % self.getLatestImageTimestamp() + "\n"
 					else:
 						message = _("Do you want to update your receiver?") + "\n"
-					message = message + "(" + (ngettext("%s updated package available", "%s updated packages available", self.total_packages) % self.total_packages) + ")"
+					message += "(" + (ngettext("%s updated package available", "%s updated packages available", self.total_packages) % self.total_packages) + ")"
+					if self.total_packages > 150:
+						message += " " + _("Reflash recommended!")
 					choices = [(_("Update and reboot (recommended)"), "cold"),
 						(_("Update and ask to reboot"), "hot"),
 						(_("Update channel list only"), "channels"),
-						(_("Show latest commits on sourceforge"), "commits"),
-						(_("Show updated packages"), "showlist")]
-					if not config.usage.show_update_disclaimer.value:
-						choices.append((_("Show disclaimer"), "disclaimer"))
-					choices.append((_("Cancel"), ""))
-					self.session.openWithCallback(self.startActualUpgrade, ChoiceBox, title=message, list=choices)
+						(_("Show packages to be upgraded"), "showlist")]
 				else:
-					self.session.openWithCallback(self.close, MessageBox, _("No updates available"), type=MessageBox.TYPE_INFO, timeout=3, close_on_any_key=True)
+					message = _("No updates available")
+					choices = []
+				if fileExists("/home/root/ipkgupgrade.log"):
+					choices.append((_("Show latest upgrade log"), "log"))
+				choices.append((_("Show latest commits"), "commits"))
+				if not config.usage.show_update_disclaimer.value:
+					choices.append((_("Show disclaimer"), "disclaimer"))
+				choices.append((_("Cancel"), ""))
+				self.session.openWithCallback(self.startActualUpgrade, ChoiceBox, title=message, list=choices)
 			elif self.channellist_only > 0:
 				if self.channellist_only == 1:
 					self.setEndMessage(_("Could not find installed channel list."))
@@ -262,6 +275,11 @@ class UpdatePlugin(Screen):
 			text = ""
 			for i in [x[0] for x in sorted(self.ipkg.getFetchedList(), key=lambda d: d[0])]:
 				text = text and text + "\n" + i or i
+			self.session.openWithCallback(boundFunction(self.ipkgCallback, IpkgComponent.EVENT_DONE, None), TextBox, text, _("Packages to update"))
+		elif answer[1] == "log":
+			text = ""
+			for i in open("/home/root/ipkgupgrade.log", "r").readlines():
+				text += i
 			self.session.openWithCallback(boundFunction(self.ipkgCallback, IpkgComponent.EVENT_DONE, None), TextBox, text, _("Packages to update"))
 		else:
 			self.ipkg.startCmd(IpkgComponent.CMD_UPGRADE, args = {'test_only': False})
