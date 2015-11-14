@@ -289,8 +289,8 @@ class Harddisk:
 
 		task = Task.LoggingTask(job, _("Rereading partition table"))
 		task.weighting = 1
-		task.setTool('sfdisk')
-		task.args.append('-R')
+		task.setTool('hdparm')
+		task.args.append('-z')
 		task.args.append(self.disk_path)
 
 		task = Task.ConditionTask(job, _("Waiting for partition"), timeoutCount=20)
@@ -329,10 +329,10 @@ class Harddisk:
 			if size > 128000:
 				# Start at sector 8 to better support 4k aligned disks
 				print "[HD] Detected >128GB disk, using 4k alignment"
-				task.initial_input = "8,\n;0,0\n;0,0\n;0,0\ny\n"
+				task.initial_input = "8,,L\n;0,0\n;0,0\n;0,0\ny\n"
 			else:
 				# Smaller disks (CF cards, sticks etc) don't need that
-				task.initial_input = "0,\n;\n;\n;\ny\n"
+				task.initial_input = ",,L\n;\n;\n;\ny\n"
 
 		task = Task.ConditionTask(job, _("Waiting for partition"))
 		task.check = lambda: os.path.exists(self.partitionPath("1"))
@@ -711,6 +711,25 @@ class HarddiskManager:
 				self.hdd.append(Harddisk(device, removable))
 				self.hdd.sort()
 				SystemInfo["Harddisk"] = True
+		return error, blacklisted, removable, is_cdrom, partitions, medium_found
+
+	def addHotplugAudiocd(self, device, physdev = None):
+		# device is the device name, without /dev
+		# physdev is the physical device path, which we (might) use to determine the userfriendly name
+		if not physdev:
+			dev, part = self.splitDeviceName(device)
+			try:
+				physdev = os.path.realpath('/sys/block/' + dev + '/device')[4:]
+			except OSError:
+				physdev = dev
+				print "couldn't determine blockdev physdev for device", device
+		error, blacklisted, removable, is_cdrom, partitions, medium_found = self.getBlockDevInfo(device)
+		if not blacklisted and medium_found:
+			description = self.getUserfriendlyDeviceName(device, physdev)
+			p = Partition(mountpoint = "/media/audiocd", description = description, force_mounted = True, device = device)
+			self.partitions.append(p)
+			self.on_partition_list_change("add", p)
+			SystemInfo["Harddisk"] = False
 		return error, blacklisted, removable, is_cdrom, partitions, medium_found
 
 	def removeHotplugPartition(self, device):

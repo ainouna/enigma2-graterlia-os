@@ -183,7 +183,7 @@ RESULT eStaticServiceDVBBouquetInformation::getName(const eServiceReference &ref
 		return err;
 	}
 
-	eBouquet *bouquet=0;
+	eBouquet *bouquet = NULL;
 	if ((err = db->getBouquet(ref, bouquet)) != 0)
 	{
 		eDebug("[eStaticServiceDVBBouquetInformation] getName failed.. getBouquet failed!");
@@ -219,7 +219,7 @@ int eStaticServiceDVBBouquetInformation::isPlayable(const eServiceReference &ref
 			return 0;
 		}
 
-		eBouquet *bouquet=0;
+		eBouquet *bouquet = NULL;
 		if (db->getBouquet(ref, bouquet))
 		{
 			eDebug("[eStaticServiceDVBBouquetInformation] isPlayable failed.. getBouquet failed!");
@@ -1294,7 +1294,7 @@ void eDVBServicePlay::serviceEventTimeshift(int event)
 			if (m_skipmode < 0)
 				m_cue->seekTo(0, -1000);
 			ePtr<iTsSource> source = createTsSource(r);
-			m_service_handler_timeshift.tuneExt(r, 1, source, r.path.c_str(), m_cue, 0, m_dvb_service, false); /* use the decoder demux for everything */
+			m_service_handler_timeshift.tuneExt(r, source, r.path.c_str(), m_cue, 0, m_dvb_service, false); /* use the decoder demux for everything */
 
 			m_event((iPlayableService*)this, evUser+1);
 		}
@@ -1324,7 +1324,7 @@ void eDVBServicePlay::serviceEventTimeshift(int event)
 				resetTimeshift(1);
 
 				ePtr<iTsSource> source = createTsSource(r);
-				m_service_handler_timeshift.tuneExt(r, 1, source, m_timeshift_file_next.c_str(), m_cue, 0, m_dvb_service, eDVBServicePMTHandler::timeshift_playback, false); /* use the decoder demux for everything */
+				m_service_handler_timeshift.tuneExt(r, source, m_timeshift_file_next.c_str(), m_cue, 0, m_dvb_service, eDVBServicePMTHandler::timeshift_playback, false); /* use the decoder demux for everything */
 
 				m_event((iPlayableService*)this, evUser+1);
 			}
@@ -1339,46 +1339,9 @@ RESULT eDVBServicePlay::start()
 	bool scrambled = true;
 	int packetsize = 188;
 	eDVBServicePMTHandler::serviceType type = eDVBServicePMTHandler::livetv;
-	ePtr<eDVBResourceManager> res_mgr;
 
-	bool remote_fallback_enabled = eConfigManager::getConfigBoolValue("config.usage.remote_fallback_enabled", false);
-	std::string remote_fallback_url = eConfigManager::getConfigValue("config.usage.remote_fallback");
-
-	if(!m_is_stream && !m_is_pvr &&
-			remote_fallback_enabled &&
-			(remote_fallback_url.length() > 0) &&
-			!eDVBResourceManager::getInstance(res_mgr))
-	{
-		eDVBChannelID chid, chid_ignore;
-		int system;
-
-		service.getChannelID(chid);
-		eServiceReferenceDVB().getChannelID(chid_ignore);
-
-		if(!res_mgr->canAllocateChannel(chid, chid_ignore, system))
-		{
-			size_t index;
-
-			while((index = remote_fallback_url.find(':')) != std::string::npos)
-			{
-				remote_fallback_url.erase(index, 1);
-				remote_fallback_url.insert(index, "%3a");
-			}
-
-			std::ostringstream remote_service_ref;
-			remote_service_ref << std::hex << service.type << ":" << service.flags << ":" << 
-					service.getData(0) << ":" << service.getData(1) << ":" << service.getData(2) << ":0:0:0:0:0:" <<
-					remote_fallback_url << "/" <<
-					service.type << "%3a" << service.flags;
-			for(index = 0; index < 8; index++)
-					remote_service_ref << "%3a" << service.getData(index);
-
-			service = eServiceReferenceDVB(remote_service_ref.str());
-
-			m_is_stream = true;
-			m_is_pvr = false;
-		}
-	}
+	if(tryFallbackTuner(/*REF*/service, /*REF*/m_is_stream, m_is_pvr, /*simulate*/false))
+		eDebug("ServicePlay: fallback tuner selected");
 
 		/* in pvr mode, we only want to use one demux. in tv mode, we're using
 		   two (one for decoding, one for data source), as we must be prepared
@@ -1405,7 +1368,13 @@ RESULT eDVBServicePlay::start()
 		 * streams are considered to be descrambled by default;
 		 * user can indicate a stream is scrambled, by using servicetype id + 0x100
 		 */
+		bool config_descramble_client = eConfigManager::getConfigBoolValue("config.streaming.descramble_client", false);
+
 		scrambled = (m_reference.type == eServiceFactoryDVB::id + 0x100);
+
+		if(config_descramble_client)
+			scrambled = true;
+
 		type = eDVBServicePMTHandler::streamclient;
 		//will skip on calling findPMT() for streams, as it is not needed
 		service.setServiceID(eServiceFactoryDVB::id);
@@ -1413,7 +1382,7 @@ RESULT eDVBServicePlay::start()
 
 	m_first_program_info = 1;
 	ePtr<iTsSource> source = createTsSource(service, packetsize);
-	m_service_handler.tuneExt(service, m_is_pvr, source, service.path.c_str(), m_cue, false, m_dvb_service, type, scrambled);
+	m_service_handler.tuneExt(service, source, service.path.c_str(), m_cue, false, m_dvb_service, type, scrambled);
 
 	if (m_is_pvr)
 	{
@@ -2319,6 +2288,53 @@ ePyObject eDVBServicePlay::getRassInteractiveMask()
 	Py_RETURN_NONE;
 }
 
+bool eDVBServiceBase::tryFallbackTuner(eServiceReferenceDVB &service, bool &is_stream, bool is_pvr, bool simulate)
+{
+	ePtr<eDVBResourceManager> res_mgr;
+	std::ostringstream remote_service_ref;
+	eDVBChannelID chid, chid_ignore;
+	int system;
+	size_t index;
+
+	bool remote_fallback_enabled = eConfigManager::getConfigBoolValue("config.usage.remote_fallback_enabled", false);
+	std::string remote_fallback_url = eConfigManager::getConfigValue("config.usage.remote_fallback");
+
+	if(is_stream || is_pvr || simulate ||
+			!remote_fallback_enabled || (remote_fallback_url.length() == 0) ||
+			eDVBResourceManager::getInstance(res_mgr))
+		return(false);
+
+	service.getChannelID(chid); 						// this sets chid
+	eServiceReferenceDVB().getChannelID(chid_ignore);	// this sets chid_ignore
+
+	if(res_mgr->canAllocateChannel(chid, chid_ignore, system))	// this sets system
+		return(false);
+
+	while((index = remote_fallback_url.find(':')) != std::string::npos)
+	{
+		remote_fallback_url.erase(index, 1);
+		remote_fallback_url.insert(index, "%3a");
+	}
+
+	remote_service_ref << std::hex << service.type << ":" << service.flags << ":";
+
+	for(index = 0; index < 8; index++)
+		remote_service_ref << std::hex << service.getData(index) << ":";
+
+	remote_service_ref << std::hex << remote_fallback_url << "/" << service.type << "%3a" << service.flags;
+
+	for(index = 0; index < 8; index++)
+		remote_service_ref << std::hex << "%3a" << service.getData(index);
+
+	eDebug("Fallback tuner: redirected unavailable service to: %s\n", remote_service_ref.str().c_str());
+
+	service = eServiceReferenceDVB(remote_service_ref.str());
+
+	is_stream = true;
+
+	return(true);
+}
+
 int eDVBServiceBase::getFrontendInfo(int w)
 {
 	eUsePtr<iDVBChannel> channel;
@@ -2742,7 +2758,7 @@ void eDVBServicePlay::switchToTimeshift()
 	m_cue->seekTo(0, -1000);
 
 	ePtr<iTsSource> source = createTsSource(r);
-	m_service_handler_timeshift.tuneExt(r, 1, source, m_timeshift_file.c_str(), m_cue, 0, m_dvb_service, eDVBServicePMTHandler::timeshift_playback, false); /* use the decoder demux for everything */
+	m_service_handler_timeshift.tuneExt(r, source, m_timeshift_file.c_str(), m_cue, 0, m_dvb_service, eDVBServicePMTHandler::timeshift_playback, false); /* use the decoder demux for everything */
 
 	eDebug("[eDVBServicePlay] switchToTimeshift, in pause mode now.");
 	pause();
