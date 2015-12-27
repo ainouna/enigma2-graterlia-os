@@ -14,7 +14,7 @@ from xml.etree.cElementTree import parse as ci_parse
 from Tools.XMLTools import elementsWithTag, mergeText, stringToXML
 from enigma import eDVBCI_UI, eDVBCIInterfaces, eEnv
 
-from os import system, path as os_path
+import os
 
 class CIselectMainMenu(Screen):
 	skin = """
@@ -41,23 +41,25 @@ class CIselectMainMenu(Screen):
 				"cancel": self.close
 			}, -1)
 
-		NUM_CI=eDVBCIInterfaces.getInstance().getNumOfSlots()
+		NUM_CI = eDVBCIInterfaces.getInstance() and eDVBCIInterfaces.getInstance().getNumOfSlots()
 
 		print "[CI_Wizzard] FOUND %d CI Slots " % NUM_CI
 
 		self.dlg = None
 		self.state = { }
 		self.list = [ ]
-		if NUM_CI > 0:
+		if  NUM_CI and NUM_CI > 0:
 			for slot in range(NUM_CI):
 				state = eDVBCI_UI.getInstance().getState(slot)
-				if state == 0:
-					appname = _("Slot %d") %(slot+1) + " - " + _("no module found")
-				elif state == 1:
-					appname = _("Slot %d") %(slot+1) + " - " + _("init modules")
-				elif state == 2:
-					appname = _("Slot %d") %(slot+1) + " - " + eDVBCI_UI.getInstance().getAppName(slot)
-				self.list.append( (appname, ConfigNothing(), 0, slot) )
+				if state != -1:
+					appname = _("Slot %d") %(slot+1) + " - " + _("unknown error")
+					if state == 0:
+						appname = _("Slot %d") %(slot+1) + " - " + _("no module found")
+					elif state == 1:
+						appname = _("Slot %d") %(slot+1) + " - " + _("init modules")
+					elif state == 2:
+						appname = _("Slot %d") %(slot+1) + " - " + eDVBCI_UI.getInstance().getAppName(slot)
+					self.list.append( (appname, ConfigNothing(), 0, slot) )
 		else:
 			self.list.append( (_("no CI slots found") , ConfigNothing(), 1, -1) )
 
@@ -91,7 +93,6 @@ class CIselectMainMenu(Screen):
 			for ci in range(NUM_CI):
 				print eDVBCIInterfaces.getInstance().getDescrambleRules(ci)"""
 
-
 class CIconfigMenu(Screen):
 	skin = """
 		<screen name="CIconfigMenu" position="center,center" size="560,440" title="CI assignment" >
@@ -114,7 +115,7 @@ class CIconfigMenu(Screen):
 	def __init__(self, session, ci_slot="9"):
 
 		Screen.__init__(self, session)
-		self.ci_slot=ci_slot
+		self.ci_slot = ci_slot
 		self.filename = eEnv.resolve("${sysconfdir}/enigma2/ci") + str(self.ci_slot) + ".xml"
 
 		self["key_red"] = StaticText(_("Delete"))
@@ -137,11 +138,11 @@ class CIconfigMenu(Screen):
 
 		print "[CI_Wizzard_Config] Configuring CI Slots : %d  " % self.ci_slot
 
-		i=0
-		self.caidlist=[]
+		i = 0
+		self.caidlist  =[]
 		print eDVBCIInterfaces.getInstance().readCICaIds(self.ci_slot)
 		for caid in eDVBCIInterfaces.getInstance().readCICaIds(self.ci_slot):
-			i+=1
+			i += 1
 			self.caidlist.append((str(hex(int(caid))),str(caid),i))
 
 		print "[CI_Wizzard_Config_CI%d] read following CAIds from CI: %s" %(self.ci_slot, self.caidlist)
@@ -197,41 +198,41 @@ class CIconfigMenu(Screen):
 
 	def finishedChannelSelection(self, *args):
 		if len(args):
-			ref=args[0]
+			ref = args[0]
 			service_ref = ServiceReference(ref)
 			service_name = service_ref.getServiceName()
-			if find_in_list(self.servicelist, service_name, 0)==False:
-				split_ref=service_ref.ref.toString().split(":")
+			if find_in_list(self.servicelist, service_name, 0) == False:
+				split_ref = service_ref.ref.toString().split(":")
 				if split_ref[0] == "1":#== dvb service und nicht muell von None
-					self.servicelist.append( (service_name , ConfigNothing(), 0, service_ref.ref.toString()) )
+					self.servicelist.append((service_name , ConfigNothing(), 0, service_ref.ref.toString()))
 					self["ServiceList"].l.setList(self.servicelist)
 					self.setServiceListInfo()
 
 	def finishedProviderSelection(self, *args):
-		if len(args)>1: # bei nix selected kommt nur 1 arg zurueck (==None)
-			name=args[0]
-			dvbnamespace=args[1]
-			if find_in_list(self.servicelist, name, 0)==False:
-				self.servicelist.append( (name , ConfigNothing(), 1, dvbnamespace) )
+		if len(args) > 1: # bei nix selected kommt nur 1 arg zurueck (==None)
+			name = args[0]
+			dvbnamespace = args[1]
+			if find_in_list(self.servicelist, name, 0) == False:
+				self.servicelist.append((name , ConfigNothing(), 1, dvbnamespace))
 				self["ServiceList"].l.setList(self.servicelist)
 				self.setServiceListInfo()
 
 	def finishedCAidSelection(self, *args):
 		if len(args):
-			self.selectedcaid=args[0]
+			self.selectedcaid = args[0]
 			self.caids=""
 			if len(self.selectedcaid):
 				for item in self.selectedcaid:
 					if len(self.caids):
-						self.caids+= ", " + item[0]
+						self.caids += ", " + item[0]
 					else:
-						self.caids=item[0]
+						self.caids = item[0]
 			else:
-				self.selectedcaid=[]
-				self.caids=_("no CAId selected")
+				self.selectedcaid = []
+				self.caids = _("no CAId selected")
 		else:
-			self.selectedcaid=[]
-			self.caids=_("no CAId selected")
+			self.selectedcaid = []
+			self.caids = _("no CAId selected")
 		self["CAidList"].setText(self.caids)
 
 	def saveXML(self):
@@ -254,28 +255,27 @@ class CIconfigMenu(Screen):
 			fp.write("</ci>\n")
 			fp.close()
 		except:
-			print "[CI_Config_CI%d] xml not written" %self.ci_slot
+			print "[CI_Config_CI%d] xml not written" % self.ci_slot
 			os.unlink(self.filename)
 
 	def loadXML(self):
-		if not os_path.exists(self.filename):
+		if not os.path.exists(self.filename):
+			self.setServiceListInfo()
 			return
 
 		def getValue(definitions, default):
 			ret = ""
 			Len = len(definitions)
 			return Len > 0 and definitions[Len-1].text or default
-
+		self.read_services = []
+		self.read_providers = []
+		self.usingcaid = []
+		self.ci_config = []
 		try:
 			tree = ci_parse(self.filename).getroot()
-			self.read_services=[]
-			self.read_providers=[]
-			self.usingcaid=[]
-			self.ci_config=[]
 			for slot in tree.findall("slot"):
 				read_slot = getValue(slot.findall("id"), False).encode("UTF-8")
 				print "ci " + read_slot
-
 				i=0
 				for caid in slot.findall("caid"):
 					read_caid = caid.get("id").encode("UTF-8")
@@ -295,7 +295,11 @@ class CIconfigMenu(Screen):
 
 				self.ci_config.append((int(read_slot), (self.read_services, self.read_providers, self.usingcaid)))
 		except:
-			print "[CI_Config_CI%d] error parsing xml..." %self.ci_slot
+			print "[CI_Config_CI%d] error parsing xml..." % self.ci_slot
+			try:
+				os.remove(self.filename)
+			except:
+				print "[CI_Activate_Config_CI%d] error remove damaged xml..." % self.ci_slot
 
 		for item in self.read_services:
 			if len(item):
@@ -309,7 +313,6 @@ class CIconfigMenu(Screen):
 		self.finishedCAidSelection(self.selectedcaid)
 		self["ServiceList"].l.setList(self.servicelist)
 		self.setServiceListInfo()
-
 
 class easyCIconfigMenu(CIconfigMenu):
 	skin = """
@@ -337,7 +340,6 @@ class easyCIconfigMenu(CIconfigMenu):
 			"yellow": self.yellowPressed,
 			"cancel": self.cancel
 		})
-
 
 class CAidSelect(Screen):
 	skin = """
@@ -557,9 +559,9 @@ class myChannelSelection(ChannelSelectionBase):
 		self.close(None)
 
 def activate_all(session):
-	NUM_CI=eDVBCIInterfaces.getInstance().getNumOfSlots()
+	NUM_CI = eDVBCIInterfaces.getInstance().getNumOfSlots()
 	print "[CI_Activate] FOUND %d CI Slots " % NUM_CI
-	if NUM_CI > 0:
+	if NUM_CI and NUM_CI > 0:
 		ci_config=[]
 		def getValue(definitions, default):
 			# Initialize Output
@@ -571,8 +573,9 @@ def activate_all(session):
 		for ci in range(NUM_CI):
 			filename = eEnv.resolve("${sysconfdir}/enigma2/ci") + str(ci) + ".xml"
 
-			if not os_path.exists(filename):
+			if not os.path.exists(filename):
 				print "[CI_Activate_Config_CI%d] no config file found" %ci
+				continue
 
 			try:
 				tree = ci_parse(filename).getroot()
@@ -597,20 +600,24 @@ def activate_all(session):
 
 					ci_config.append((int(read_slot), (read_services, read_providers, usingcaid)))
 			except:
-				print "[CI_Activate_Config_CI%d] error parsing xml..." %ci
-
+				print "[CI_Activate_Config_CI%d] error parsing xml..." % ci
+				try:
+					os.remove(filename)
+				except:
+					print "[CI_Activate_Config_CI%d] error remove damaged xml..." % ci
 		for item in ci_config:
-			print "[CI_Activate] activate CI%d with following settings:" %item[0]
-			print item[0]
-			print item[1]
-			try:
-				eDVBCIInterfaces.getInstance().setDescrambleRules(item[0],item[1])
-			except:
-				print "[CI_Activate_Config_CI%d] error setting DescrambleRules..." %item[0]
+			if len(item) > 1 and len(item[1]) > 0:
+				print "[CI_Activate] activate CI%d with following settings:" % item[0]
+				print item[0]
+				print item[1]
+				try:
+					eDVBCIInterfaces.getInstance().setDescrambleRules(item[0],item[1])
+				except:
+					print "[CI_Activate_Config_CI%d] error setting DescrambleRules..." %item[0]
 
 def find_in_list(list, search, listpos=0):
 	for item in list:
-		if item[listpos]==search:
+		if item[listpos] == search:
 			return True
 	return False
 
@@ -631,17 +638,24 @@ def autostart(reason, **kwargs):
 def main(session, **kwargs):
 	session.open(CIselectMainMenu)
 
+def isModule():
+	NUM_CI = eDVBCIInterfaces.getInstance() and eDVBCIInterfaces.getInstance().getNumOfSlots()
+	if NUM_CI and NUM_CI > 0:
+		for slot in range(NUM_CI):
+			state = eDVBCI_UI.getInstance().getState(slot)
+			if state > 0:
+				return True
+	return False
+
 def menu(menuid, **kwargs):
-	if menuid == "setup" and eDVBCIInterfaces.getInstance().getNumOfSlots():
+	if menuid == "cam" and isModule():
 		return [(_("Common Interface assignment"), main, "ci_assign", 11)]
-	return [ ]
+	return []
 
 def Plugins(**kwargs):
+	description = _("a gui to assign services/providers to common interface modules")
 	if config.usage.setup_level.index > 1:
-		return [PluginDescriptor( where = PluginDescriptor.WHERE_SESSIONSTART, needsRestart = False, fnc = sessionstart ),
-				PluginDescriptor( where = PluginDescriptor.WHERE_AUTOSTART, needsRestart = False, fnc = autostart ),
-				PluginDescriptor( name = _("Common Interface assignment"), description = _("a gui to assign services/providers/caids to common interface modules"), where = PluginDescriptor.WHERE_MENU, needsRestart = False, fnc = menu )]
-	else:
-		return [PluginDescriptor( where = PluginDescriptor.WHERE_SESSIONSTART, needsRestart = False, fnc = sessionstart ),
-				PluginDescriptor( where = PluginDescriptor.WHERE_AUTOSTART, needsRestart = False, fnc = autostart ),
-				PluginDescriptor( name = _("Common Interface assignment"), description = _("a gui to assign services/providers to common interface modules"), where = PluginDescriptor.WHERE_MENU, needsRestart = False, fnc = menu )]
+		description = _("a gui to assign services/providers/caids to common interface modules")
+	return [PluginDescriptor(where = PluginDescriptor.WHERE_SESSIONSTART, needsRestart = False, fnc = sessionstart),
+			PluginDescriptor(where = PluginDescriptor.WHERE_AUTOSTART, needsRestart = False, fnc = autostart),
+			PluginDescriptor(name = _("Common Interface assignment"), description = description, where = PluginDescriptor.WHERE_MENU, needsRestart = False, fnc = menu)]

@@ -530,6 +530,7 @@ int eDVBFrontend::openFrontend()
 			if (ioctl(m_fd, FE_GET_PROPERTY, &cmdseq) >= 0)
 			{
 				m_dvbversion = p.u.data;
+				eDebug("[eDVBFrontend] frontend %d has DVB API %02x ", m_dvbid, m_dvbversion);
 			}
 #endif
 		}
@@ -977,6 +978,20 @@ void eDVBFrontend::calculateSignalQuality(int snr, int &signalquality, int &sign
 		case eDVBFrontendParametersCable::Modulation_QAM32:
 		case eDVBFrontendParametersCable::Modulation_QAM128: ret = (int)(-875 * log(((double)mse) / 650)); break;
 		default: break;
+		}
+	}
+	else if (!strcmp(m_description, "Si216x"))
+	{
+		eDVBFrontendParametersTerrestrial parm;
+
+		oparm.getDVBT(parm);
+
+		switch (parm.system)
+		{
+			case eDVBFrontendParametersTerrestrial::System_DVB_T:
+			case eDVBFrontendParametersTerrestrial::System_DVB_T2: 
+			case eDVBFrontendParametersTerrestrial::System_DVB_T_T2: ret = (int)((snr * 10) / 15); break;
+			default: break;
 		}
 	}
 
