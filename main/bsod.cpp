@@ -21,51 +21,8 @@
 #define CRASH_EMAILADDR "forum at www.openpli.org"
 #define INFOFILE "/maintainer.info"
 
-#define RINGBUFFER_SIZE 16384
-static char ringbuffer[RINGBUFFER_SIZE];
-static unsigned int ringbuffer_head;
-
-static void addToLogbuffer(const char *data, unsigned int len)
-{
-	while (len)
-	{
-		unsigned int remaining = RINGBUFFER_SIZE - ringbuffer_head;
-
-		if (remaining > len)
-			remaining = len;
-
-		memcpy(ringbuffer + ringbuffer_head, data, remaining);
-		len -= remaining;
-		data += remaining;
-		ringbuffer_head += remaining;
-		ASSERT(ringbuffer_head <= RINGBUFFER_SIZE);
-		if (ringbuffer_head == RINGBUFFER_SIZE)
-			ringbuffer_head = 0;
-	}
-}
-
-static const std::string getLogBuffer()
-{
-	unsigned int begin = ringbuffer_head;
-	while (ringbuffer[begin] == 0)
-	{
-		++begin;
-		if (begin == RINGBUFFER_SIZE)
-			begin = 0;
-		if (begin == ringbuffer_head)
-			return "";
-	}
-
-	if (begin < ringbuffer_head)
-		return std::string(ringbuffer + begin, ringbuffer_head - begin);
-	else
-		return std::string(ringbuffer + begin, RINGBUFFER_SIZE - begin) + std::string(ringbuffer, ringbuffer_head);
-}
-
-static void addToLogbuffer(int level, const std::string &log)
-{
-	addToLogbuffer(log.c_str(), log.size());
-}
+/* Defined in bsod.cpp */
+extern const std::string getLogBuffer();
 
 static const std::string getConfigString(const std::string &key, const std::string &defaultValue)
 {
@@ -84,7 +41,7 @@ static const std::string getConfigString(const std::string &key, const std::stri
 			std::string line;
 			std::getline(in, line);
 			size_t size = key.size();
-			if (!key.compare(0, size, line) && line[size] == '=') {
+			if (!line.compare(0, size, key) && line[size] == '=') {
 				value = line.substr(size + 1);
 				break;
 			}
@@ -316,9 +273,4 @@ void bsodCatchSignals()
 	sigaction(SIGILL, &act, 0);
 	sigaction(SIGBUS, &act, 0);
 	sigaction(SIGABRT, &act, 0);
-}
-
-void bsodLogInit()
-{
-	logOutput.connect(addToLogbuffer);
 }
