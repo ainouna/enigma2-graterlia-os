@@ -76,7 +76,6 @@ void DumpUnfreed()
 };
 #endif
 
-int logOutputConsole = 1;
 int debugLvl = lvlDebug;
 
 static pthread_mutex_t DebugLock = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP;
@@ -103,7 +102,7 @@ static void logOutput(const char *data, unsigned int len)
 	}
 }
 
-const std::string getLogBuffer()
+void retrieveLogBuffer(const char **p1, unsigned int *s1, const char **p2, unsigned int *s2)
 {
 	unsigned int begin = ringbuffer_head;
 	while (ringbuffer[begin] == 0)
@@ -112,33 +111,64 @@ const std::string getLogBuffer()
 		if (begin == RINGBUFFER_SIZE)
 			begin = 0;
 		if (begin == ringbuffer_head)
-			return "";
+			return;
 	}
 
 	if (begin < ringbuffer_head)
-		return std::string(ringbuffer + begin, ringbuffer_head - begin);
+	{
+		*p1 = ringbuffer + begin;
+		*s1 = ringbuffer_head - begin;
+		*p2 = NULL;
+		*s2 = NULL;
+	}
 	else
-		return std::string(ringbuffer + begin, RINGBUFFER_SIZE - begin) + std::string(ringbuffer, ringbuffer_head);
+	{
+		*p1 = ringbuffer + begin;
+		*s1 = RINGBUFFER_SIZE - begin;
+		*p2 = ringbuffer;
+		*s2 = ringbuffer_head;
+	}
 }
 
 
 extern void bsodFatal(const char *component);
 
+#define eDEBUG_BUFLEN    1024
+
 void eDebugImpl(int flags, const char* fmt, ...)
 {
-	char buf[1024];
+	char * buf = new char[eDEBUG_BUFLEN];
 	int pos = 0;
+	struct timespec tp;
 
 	if (! (flags & _DBGFLG_NOTIME)) {
-		struct timespec tp;
 		clock_gettime(CLOCK_MONOTONIC, &tp);
-		pos = snprintf(buf, sizeof(buf), "<%6lu.%03lu> ", tp.tv_sec, tp.tv_nsec/1000000);
+		pos = snprintf(buf, eDEBUG_BUFLEN, "<%6lu.%03lu> ", tp.tv_sec, tp.tv_nsec/1000000);
 	}
 
 	va_list ap;
 	va_start(ap, fmt);
-	pos += vsnprintf(buf + pos, sizeof(buf) - pos, fmt, ap);
+	int vsize = vsnprintf(buf + pos, eDEBUG_BUFLEN - pos, fmt, ap);
 	va_end(ap);
+	if (vsize < 0) {
+		vsize = 0;
+		pos += snprintf(buf + pos, eDEBUG_BUFLEN - pos, " Error formatting: %s", fmt);
+		if (pos > eDEBUG_BUFLEN - 1)
+			pos = eDEBUG_BUFLEN - 1;
+	}
+	else if (pos + vsize > eDEBUG_BUFLEN - 1) {
+		delete[] buf;
+		// pos still contains size of timestring
+		// +2 for \0 and optional newline
+		buf = new char[pos + vsize + 2];
+		if (! (flags & _DBGFLG_NOTIME))
+			pos = snprintf(buf, pos + vsize, "<%6lu.%03lu> ", tp.tv_sec, tp.tv_nsec/1000000);
+		va_start(ap, fmt);
+		vsize = vsnprintf(buf + pos, vsize + 1, fmt, ap);
+		va_end(ap);
+	}
+
+	pos += vsize;
 
 	if (!(flags & _DBGFLG_NONEWLINE)) {
 		/* buf will still be null-terminated here, so it is always safe
@@ -149,9 +179,9 @@ void eDebugImpl(int flags, const char* fmt, ...)
 
 	logOutput(buf, pos);
 
-	if (logOutputConsole)
-		::write(2, buf, pos);
+	::write(2, buf, pos);
 
+	delete[] buf;
 	if (flags & _DBGFLG_FATAL)
 		bsodFatal("enigma2");
 }
