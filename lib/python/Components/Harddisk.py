@@ -68,23 +68,36 @@ class Harddisk:
 		self.mount_device = None
 		self.phys_path = os.path.realpath(self.sysfsPath('device'))
 
-		if self.type is DEVTYPE_UDEV:
+		self.removable = removable
 		self.internal = "pci" in self.phys_path or "ahci" in self.phys_path
+		
 		try:
 			data = open("/sys/block/%s/queue/rotational" % device, "r").read().strip()
 			self.rotational = int(data)
 		except:
 			self.rotational = True
 
+
+		if self.type == DEVTYPE_UDEV:
 			self.dev_path = '/dev/' + self.device
 			self.disk_path = self.dev_path
 			self.card = "sdhci" in self.phys_path
 
-#+++>
-		elif self.type is DEVTYPE_DEVFS:
-			self.dev_path = '/dev/' + self.device
-			self.disk_path = self.dev_path
-#+++<
+		elif self.type == DEVTYPE_DEVFS:
+			tmp = readFile(self.sysfsPath('dev')).split(':')
+			s_major = int(tmp[0])
+			s_minor = int(tmp[1])
+			for disc in os.listdir("/dev/discs"):
+				dev_path = os.path.realpath('/dev/discs/' + disc)
+				disk_path = dev_path + '/disc'
+				try:
+					rdev = os.stat(disk_path).st_rdev
+				except OSError:
+					continue
+				if s_major == os.major(rdev) and s_minor == os.minor(rdev):
+					self.dev_path = dev_path
+					self.disk_path = disk_path
+					break
 			self.card = self.device[:2] == "hd" and "host0" not in self.dev_path
 
 		print "[Harddisk] new device", self.device, '->', self.dev_path, '->', self.disk_path
