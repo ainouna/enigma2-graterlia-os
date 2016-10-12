@@ -33,10 +33,14 @@ serviceinclude_HEADERS = \
 
 if ENABLE_LIBEPLAYER3
 service_libenigma_service_a_SOURCES += \
+	service/m3u8.cpp \
 	service/servicelibpl.cpp
 serviceinclude_HEADERS += \
-	service/servicelibpl.h 
-else
+	service/m3u8.h \
+	service/servicelibpl.h
+endif
+
+if ENABLE_GSTREAMER
 service_libenigma_service_a_SOURCES += \
 	service/servicemp3.cpp \
 	service/servicemp3record.cpp

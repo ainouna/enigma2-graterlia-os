@@ -48,14 +48,14 @@ case $ret in
 	3)
 		cat /etc/videomode > /proc/stb/video/videomode
 		echo "0" > /proc/progress
-		@bindir@/showiframe -p /boot/bootlogo.mvi &
+		@bindir@/showiframe /boot/bootlogo.mvi
 		;;
 	4)
 		/sbin/reboot
 		;;
 	5)
 		if ! grep -q config.misc.RestartUI /etc/enigma2/settings; then
-			echo "config.misc.RestartUI=true" >>/etc/enigma2/settings
+			echo "config.misc.RestartUI=true" >>/etc/enigma2/settings;
 		fi
 		;;
 	42)
@@ -63,6 +63,22 @@ case $ret in
 		[ -f /sys/class/vtconsole/vtcon1/bind ] && echo 1 > /sys/class/vtconsole/vtcon1/bind
 		opkg upgrade 2>&1 | tee /hdd/ipkgupgrade.log
 		/sbin/reboot
+		;;
+	43)
+		#auto install and autobackup
+		[ -f /sys/class/vtconsole/vtcon1/bind ] && echo 1 > /sys/class/vtconsole/vtcon1/bind
+		/etc/init.d/settings-restore.sh
+		/etc/init.d/avahi-daemon stop
+		ifdown eth1
+		ip addr flush dev eth1
+		ifdown eth0
+		ip addr flush dev eth0
+		/etc/init.d/networking stop
+		killall -9 udhcpc
+		rm /var/run/udhcpc*
+		/etc/init.d/networking start
+		/etc/init.d/avahi-daemon start
+		/etc/init.d/autoinstall.sh
 		;;
 	*)
 		# No zombies

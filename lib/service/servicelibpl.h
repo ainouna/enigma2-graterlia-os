@@ -8,33 +8,32 @@
 #include <lib/dvb/teletext.h>
 #include <lib/gui/esubtitle.h>
 
-extern "C"
-{
-#ifndef __STDC_CONSTANT_MACROS
-#  define __STDC_CONSTANT_MACROS
-#  define UINT64_C
-#endif
+#include <libeplayer3/player.h>
+
+#include "m3u8.h"
 #include <libeplayer/common.h>
 #include <libeplayer/subtitle.h>
-}
 
 #define gint int
 #define gint64 int64_t
-extern OutputHandler_t		OutputHandler;
-extern PlaybackHandler_t	PlaybackHandler;
-extern ContainerHandler_t	ContainerHandler;
-extern ManagerHandler_t	ManagerHandler;
 
-class eStaticServiceMP3Info;
+class eStaticServiceLibplInfo;
 
-class eServiceFactoryMP3: public iServiceHandler
+class eServiceFactoryLibpl: public iServiceHandler
 {
-	DECLARE_REF(eServiceFactoryMP3);
+	DECLARE_REF(eServiceFactoryLibpl);
 
 public:
-	eServiceFactoryMP3();
-	virtual ~eServiceFactoryMP3();
+	eServiceFactoryLibpl();
+	virtual ~eServiceFactoryLibpl();
+#ifdef ENABLE_GSTREAMER
+	enum {
+		id = 4097,
+		idServiceLibpl = 5003
+	};
+#else
 	enum { id = 0x1001 };
+#endif
 
 	// iServiceHandler
 	RESULT play(const eServiceReference &, ePtr<iPlayableService> &ptr);
@@ -44,14 +43,17 @@ public:
 	RESULT offlineOperations(const eServiceReference &, ePtr<iServiceOfflineOperations> &ptr);
 
 private:
-	ePtr<eStaticServiceMP3Info> m_service_info;
+	ePtr<eStaticServiceLibplInfo> m_service_info;
+#ifdef ENABLE_GSTREAMER
+	bool defaultMP3_Player;
+#endif
 };
 
-class eStaticServiceMP3Info: public iStaticServiceInformation
+class eStaticServiceLibplInfo: public iStaticServiceInformation
 {
-	DECLARE_REF(eStaticServiceMP3Info);
-	friend class eServiceFactoryMP3;
-	eStaticServiceMP3Info();
+	DECLARE_REF(eStaticServiceLibplInfo);
+	friend class eServiceFactoryLibpl;
+	eStaticServiceLibplInfo();
 
 public:
 	RESULT getName(const eServiceReference &ref, std::string &name);
@@ -62,9 +64,9 @@ public:
 	RESULT getEvent(const eServiceReference &ref, ePtr<eServiceEvent> &ptr, time_t start_time);
 };
 
-class eStreamBufferInfo: public iStreamBufferInfo
+class eStreamLibplBufferInfo: public iStreamBufferInfo
 {
-	DECLARE_REF(eStreamBufferInfo);
+	DECLARE_REF(eStreamLibplBufferInfo);
 	int bufferPercentage;
 	int inputRate;
 	int outputRate;
@@ -72,7 +74,7 @@ class eStreamBufferInfo: public iStreamBufferInfo
 	int bufferSize;
 
 public:
-	eStreamBufferInfo(int percentage, int inputrate, int outputrate, int space, int size);
+	eStreamLibplBufferInfo(int percentage, int inputrate, int outputrate, int space, int size);
 	int getBufferPercentage() const;
 	int getAverageInputRate() const;
 	int getAverageOutputRate() const;
@@ -80,19 +82,15 @@ public:
 	int getBufferSize() const;
 };
 
-typedef enum { atUnknown, atMPEG, atMP3, atAC3, atDTS, atAAC, atPCM, atOGG, atFLAC, atWMA } audiotype_t;
-typedef enum { stUnknown, stPlainText, stSSA, stASS, stSRT, stVOB, stPGS } subtype_t;
-typedef enum { ctNone, ctMPEGTS, ctMPEGPS, ctMKV, ctAVI, ctMP4, ctVCD, ctCDA, ctASF, ctOGG } containertype_t;
-
-class eServiceMP3: public iPlayableService, public iPauseableService,
+class eServiceLibpl: public iPlayableService, public iPauseableService,
 	public iServiceInformation, public iSeekableService, public iAudioTrackSelection, public iAudioChannelSelection,
 	public iSubtitleOutput, public iStreamedService, public iAudioDelay, public Object, public iCueSheet
 {
-	DECLARE_REF(eServiceMP3);
+	DECLARE_REF(eServiceLibpl);
 
 public:
-	virtual ~eServiceMP3();
-	static eServiceMP3 *getInstance();
+	virtual ~eServiceLibpl();
+	static eServiceLibpl *getInstance();
 	eFixedMessagePump<int> (*inst_m_pump);
 
 	// iPlayableService
@@ -172,31 +170,19 @@ public:
 
 	struct audioStream
 	{
-		audiotype_t type;
+		int type;
+		int pid;
 		std::string language_code; /* iso-639, if available. */
-		std::string codec; /* clear text codec description */
 		audioStream()
-			:type(atUnknown)
 		{
 		}
 	};
 	struct subtitleStream
 	{
-		subtype_t type;
+		int type;
 		std::string language_code; /* iso-639, if available. */
 		int id;
 		subtitleStream()
-		{
-		}
-	};
-	struct sourceStream
-	{
-		audiotype_t audiotype;
-		containertype_t containertype;
-		bool is_video;
-		bool is_streaming;
-		sourceStream()
-			:audiotype(atUnknown), containertype(ctNone), is_video(false), is_streaming(false)
 		{
 		}
 	};
@@ -207,7 +193,7 @@ public:
 		gint avgOutRate;
 		gint64 bufferingLeft;
 		bufferInfo()
-			:bufferPercent(0), avgInRate(0), avgOutRate(0), bufferingLeft(-1)
+			:bufferPercent(100), avgInRate(0), avgOutRate(0), bufferingLeft(-1)
 		{
 		}
 	};
@@ -221,7 +207,7 @@ protected:
 	ePtr<eTimer> m_nownext_timer;
 	ePtr<eServiceEvent> m_event_now, m_event_next;
 	void updateEpgCacheNowNext();
-	static eServiceMP3 *instance;
+	static eServiceLibpl *instance;
 
 	// cuesheet
 	struct cueEntry
@@ -250,13 +236,16 @@ private:
 	std::vector<audioStream> m_audioStreams;
 	std::vector<subtitleStream> m_subtitleStreams;
 	iSubtitleUser *m_subtitle_widget;
-	friend class eServiceFactoryMP3;
+	friend class eServiceFactoryLibpl;
 	eServiceReference m_ref;
 	int m_buffer_size;
+	bool m_paused;
+	bool is_streaming;
 	// cuesheet load check
 	bool m_cuesheet_loaded;
+	bool m_use_chapter_entries;
 	bufferInfo m_bufferInfo;
-	eServiceMP3(eServiceReference ref);
+	eServiceLibpl(eServiceReference ref);
 	Signal2<void, iPlayableService*, int> m_event;
 	enum
 	{
@@ -264,24 +253,33 @@ private:
 	};
 
 	int m_state;
-	Context_t * player;
+	Player *player;
 	eFixedMessagePump<int> m_pump;
 	void gotThreadMessage(const int &);
 
-	struct subtitle_page_t
-	{
-		uint32_t start_ms;
-		uint32_t end_ms;
-		std::string text;
-		subtitle_page_t(uint32_t start_ms_in, uint32_t end_ms_in, const std::string& text_in)
-			: start_ms(start_ms_in), end_ms(end_ms_in), text(text_in)
-		{
-		}
-	};
+	std::map<std::string, std::string> m_metaData;
 
-	typedef std::map<uint32_t, subtitle_page_t> subtitle_pages_map_t;
-	subtitle_pages_map_t m_subtitle_pages;
-	sourceStream m_sourceinfo;
+	typedef std::map<uint32_t, subtitleData> subtitle_pages_map;
+	typedef std::pair<uint32_t, subtitleData> subtitle_pages_map_pair;
+	subtitle_pages_map const *m_subtitle_pages;
+	subtitle_pages_map m_emb_subtitle_pages;
+	subtitle_pages_map m_srt_subtitle_pages;
+	subtitle_pages_map m_ass_subtitle_pages;
+	subtitle_pages_map m_ssa_subtitle_pages;
+	ePtr<eTimer> m_subtitle_sync_timer;
+
+	void ReadSrtSubtitle(const char *subfile, int delay, double convert_fps);
+	void ReadSsaSubtitle(const char *subfile, int isASS, int delay, double convert_fps);
+	void ReadTextSubtitles(const char *filename);
+	void pullTextSubtitles(int type);
+	void pushSubtitles();
+	void pullSubtitle();
+	std::string getTag(std::string tag);
+	bool getVideoInfo();
+	void videoSizeChanged();
+	void videoFramerateChanged();
+	void videoProgressiveChanged();
+	void getChapters();
 	gint m_aspect, m_width, m_height, m_framerate, m_progressive;
 };
 

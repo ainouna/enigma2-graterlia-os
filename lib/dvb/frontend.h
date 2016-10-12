@@ -5,6 +5,10 @@
 #include <lib/dvb/idvb.h>
 #include <lib/dvb/frontendparms.h>
 
+#if DVB_API_VERSION < 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR < 6
+#define SYS_DVBC_ANNEX_A SYS_DVBC_ANNEX_AC
+#endif
+
 class eDVBFrontendParameters: public iDVBFrontendParameters
 {
 	DECLARE_REF(eDVBFrontendParameters);
@@ -78,6 +82,7 @@ private:
 	bool m_enabled;
 	bool m_fbc;
 	eDVBFrontend *m_simulate_fe; // only used to set frontend type in dvb.cpp
+	int m_type;
 	int m_dvbid;
 	int m_slotid;
 	int m_fd;
@@ -85,6 +90,7 @@ private:
 	int m_dvbversion;
 	bool m_rotor_mode;
 	bool m_need_rotor_workaround;
+	bool m_multitype;
 	std::map<fe_delivery_system_t, bool> m_delsys, m_delsys_whitelist;
 	std::string m_filename;
 	char m_description[128];

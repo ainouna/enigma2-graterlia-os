@@ -81,7 +81,6 @@ void DumpUnfreed()
 #if defined(__sh__)
 int logOutputConsole = 1;
 #endif
-
 int debugLvl = lvlDebug;
 
 static pthread_mutex_t DebugLock = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP;
@@ -133,6 +132,20 @@ void retrieveLogBuffer(const char **p1, unsigned int *s1, const char **p2, unsig
 		*s1 = RINGBUFFER_SIZE - begin;
 		*p2 = ringbuffer;
 		*s2 = ringbuffer_head;
+	}
+
+
+void CheckPrintkLevel()
+{
+	FILE *f = fopen("/proc/sys/kernel/printk", "r");
+	if (f)
+	{
+		fscanf(f, "%u", &logOutputConsole);
+		if (logOutputConsole < 1)
+		{
+			printf("Printk level is %u, disble Enigma log in console!\n", logOutputConsole);
+		}
+		fclose(f);
 	}
 }
 
@@ -187,7 +200,7 @@ void eDebugImpl(int flags, const char* fmt, ...)
 		// pos still contains size of timestring
 		// +2 for \0 and optional newline
 		buf = new char[pos + vsize + 2];
-		if (! (flags & _DBGFLG_NOTIME))
+		if (! (flags & _DBGFLG_NOTIME) && (logOutputConsole > 1))
 			pos = snprintf(buf, pos + vsize, "<%6lu.%03lu> ", tp.tv_sec, tp.tv_nsec/1000000);
 		va_start(ap, fmt);
 		vsize = vsnprintf(buf + pos, vsize + 1, fmt, ap);
@@ -207,7 +220,7 @@ void eDebugImpl(int flags, const char* fmt, ...)
 #if defined(__sh__)
 	if (logOutputConsole)
 #endif
-	::write(2, buf, pos);
+		::write(2, buf, pos);
 
 	delete[] buf;
 	if (flags & _DBGFLG_FATAL)

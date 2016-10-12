@@ -74,13 +74,19 @@ else
 SIGC_MAJORMINOR=2.0
 fi
 
-if ! test "$enable_libeplayer3" = "yes"; then
-dnl versions of gstreamer and plugins-base
-AC_ARG_WITH(gstversion,
-	AS_HELP_STRING([--with-gstversion],[use gstreamer version (major.minor)]),
-	[GST_MAJORMINOR=$withval],[GST_MAJORMINOR=0.10])
+AC_ARG_ENABLE([gstreamer],
+	[AS_HELP_STRING([--disable-gstreamer],[disable gstreamer as player engine supportt])],
+	[enable_gstreamer=$enableval],
+	[enable_gstreamer=yes])
 
-PKG_CHECK_MODULES(GSTREAMER, gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR)
+AM_CONDITIONAL(ENABLE_GSTREAMER, test "$enable_gstreamer" = "yes")
+
+if test "$enable_gstreamer" = "yes"; then
+	AC_DEFINE(ENABLE_GSTREAMER, 1, [include gstreamer as player engine support])
+	AC_ARG_WITH(gstversion,
+		AS_HELP_STRING([--with-gstversion],[use gstreamer version (major.minor)]),
+		[GST_MAJORMINOR=$withval],[GST_MAJORMINOR=0.10])
+	PKG_CHECK_MODULES(GSTREAMER, gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR)
 PKG_CHECK_MODULES(BASE, [freetype2 fribidi gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR libdvbsi++ libpng libxml-2.0 libssl sigc++-$SIGC_MAJORMINOR libcrypto glib-2.0])
 else
 PKG_CHECK_MODULES(BASE, [freetype2 fribidi libdvbsi++ libpng libxml-2.0 libssl sigc++-$SIGC_MAJORMINOR libcrypto glib-2.0])
@@ -309,6 +315,8 @@ lib/python/Plugins/Extensions/PicturePlayer/data/Makefile
 lib/python/Plugins/Extensions/SocketMMI/Makefile
 lib/python/Plugins/Extensions/SocketMMI/meta/Makefile
 lib/python/Plugins/Extensions/SocketMMI/src/Makefile
+lib/python/Plugins/Extensions/TuxboxPlugins/Makefile
+lib/python/Plugins/Extensions/TuxboxPlugins/meta/Makefile
 lib/python/Plugins/PLi/Makefile
 lib/python/Plugins/SystemPlugins/DefaultServicesScanner/Makefile
 lib/python/Plugins/SystemPlugins/DefaultServicesScanner/meta/Makefile
@@ -339,7 +347,6 @@ lib/python/Plugins/SystemPlugins/Videomode/Makefile
 lib/python/Plugins/SystemPlugins/Videomode/meta/Makefile
 lib/python/Plugins/SystemPlugins/WirelessLan/Makefile
 lib/python/Plugins/SystemPlugins/WirelessLan/meta/Makefile
-lib/python/Plugins/Extensions/ModemSettings/Makefile
 lib/python/Plugins/SystemPlugins/OnErrorRestartService/Makefile
 lib/python/Plugins/SystemPlugins/VFD-Icons/Makefile
 lib/python/Plugins/SystemPlugins/VFD-Icons/meta/Makefile

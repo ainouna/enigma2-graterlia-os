@@ -2,7 +2,6 @@ from Screen import Screen
 from Components.Button import Button
 from Components.ActionMap import HelpableActionMap, ActionMap, NumberActionMap
 from Components.ChoiceList import ChoiceList, ChoiceEntryComponent
-from Components.Console import Console
 from Components.MenuList import MenuList
 from Components.MovieList import MovieList, resetMoviePlayState, AUDIO_EXTENSIONS, DVD_EXTENSIONS, IMAGE_EXTENSIONS, moviePlayState
 from Components.DiskInfo import DiskInfo
@@ -382,6 +381,7 @@ class MovieContextMenu(Screen, ProtectedScreen):
 				"cancel": self.cancelClick,
 				"yellow": self.do_showNetworkSetup,
 				"menu": self.do_configure,
+				"1": self.do_unhideParentalServices,
 				"2": self.do_rename,
 				"5": self.do_copy,
 				"6": self.do_move,
@@ -406,12 +406,16 @@ class MovieContextMenu(Screen, ProtectedScreen):
 						append_to_menu(menu, (_("Reset playback position"), csel.do_reset))
 					if service.getPath()[-3:] == '.ts':
 						append_to_menu(menu, (_("Start offline decode"), csel.do_decode))
-				elif BlurayPlayer is None and csel.isBlurayFolderAndFile(service):
-					append_to_menu(menu, (_("Auto play blu-ray file"), csel.playBlurayFile))
+				if service.type in [4097, 5001, 5003]:
+					append_to_menu(menu, (_("Play with libeplayer"), csel.playLibeplayer))
+					append_to_menu(menu, (_("Play with gstreamer"), csel.playGstreamer))
+				# On spark with libeplayer there alredy exist bluray auto play
+				# elif BlurayPlayer is None and csel.isBlurayFolderAndFile(service):
+					# append_to_menu(menu, (_("Auto play blu-ray file"), csel.playBlurayFile))
 				if config.ParentalControl.hideBlacklist.value and config.ParentalControl.storeservicepin.value != "never":
 					from Components.ParentalControl import parentalControl
 					if not parentalControl.sessionPinCached:
-						append_to_menu(menu, (_("Unhide parental control services"), csel.unhideParentalServices))
+						append_to_menu(menu, (_("Unhide parental control services"), csel.unhideParentalServices), key="1")
 				# Plugins expect a valid selection, so only include them if we selected a non-dir
 				if not(service.flags & eServiceReference.mustDescent):
 					for p in plugins.getPlugins(PluginDescriptor.WHERE_MOVIELIST):
@@ -459,6 +463,9 @@ class MovieContextMenu(Screen, ProtectedScreen):
 
 	def do_delete(self):
 		self.close(self.csel.do_delete())
+
+	def do_unhideParentalServices(self):
+		self.close(self.csel.unhideParentalServices())
 
 	def do_configure(self):
 		self.close(self.csel.configure())
@@ -1013,29 +1020,6 @@ class MovieSelection(Screen, SelectionEventInfo, InfoBarBase, ProtectedScreen):
 		# Returns None or (serviceref, info, begin, len)
 		return self["list"].l.getCurrentSelection()
 
-	def mountIsoCallback(self, result, retval, extra_args):
-		remount = extra_args[1]
-		if remount != 0:
-			del self.remountTimer
-		if os.path.isdir(os.path.join(extra_args[0], 'BDMV/STREAM/')):
-			self.itemSelectedCheckTimeshiftCallback('bluray', extra_args[0], True)
-		elif os.path.isdir(os.path.join(extra_args[0], 'VIDEO_TS/')):
-			Console().ePopen('umount -f %s' % extra_args[0], self.umountIsoCallback, extra_args[0])
-		elif remount < 5:
-			remount += 1
-			self.remountTimer = eTimer()
-			self.remountTimer.timeout.callback.append(boundFunction(self.mountIsoCallback, None, None, (extra_args[0], remount)))
-			self.remountTimer.start(1000, False)
-		else:
-			Console().ePopen('umount -f %s' % extra_args[0], self.umountIsoCallback, extra_args[0])
-
-	def umountIsoCallback(self, result, retval, extra_args):
-		try:
-			os.rmdir(extra_args)
-		except Exception as e:
-			print "[ML] Cannot remove", extra_args, e
-		self.itemSelectedCheckTimeshiftCallback('.img', extra_args, True)
-
 	def playAsBLURAY(self, path):
 		try:
 			from Plugins.Extensions.BlurayPlayer import BlurayUi
@@ -1047,9 +1031,6 @@ class MovieSelection(Screen, SelectionEventInfo, InfoBarBase, ProtectedScreen):
 	def playAsDVD(self, path):
 		try:
 			from Screens import DVD
-			if path[-9:] == 'VIDEO_TS/':
-				# strip away VIDEO_TS/ part
-				path = os.path.split(path.rstrip('/'))[0]
 			self.session.open(DVD.DVDPlayer, dvd_filelist=[path])
 			return True
 		except Exception, e:
@@ -1169,7 +1150,7 @@ class MovieSelection(Screen, SelectionEventInfo, InfoBarBase, ProtectedScreen):
 		if current is not None:
 			path = current.getPath()
 			if current.flags & eServiceReference.mustDescent:
-				if path[-9:] == "VIDEO_TS/" or os.path.exists(os.path.join(path, 'VIDEO_TS.IFO')):
+				if os.path.isdir(os.path.join(path, 'VIDEO_TS/')) or os.path.exists(os.path.join(path, 'VIDEO_TS.IFO')):
 					#force a BLU-RAY extention
 					Screens.InfoBar.InfoBar.instance.checkTimeshiftRunning(boundFunction(self.itemSelectedCheckTimeshiftCallback, 'bluray', path))
 					return
@@ -1595,6 +1576,17 @@ class MovieSelection(Screen, SelectionEventInfo, InfoBarBase, ProtectedScreen):
 		if len(last_selected_dest) > 5:
 			del last_selected_dest[-1]
 
+	def playLibeplayer(self):
+		Screens.InfoBar.InfoBar.instance.checkTimeshiftRunning(boundFunction(self.changePlayerCheckTimeshiftCallback, 5003))
+
+	def playGstreamer(self):
+		Screens.InfoBar.InfoBar.instance.checkTimeshiftRunning(boundFunction(self.changePlayerCheckTimeshiftCallback, 5001))
+
+	def changePlayerCheckTimeshiftCallback(self, ref, answer):
+		if answer:
+			path = self.getCurrent().getPath()
+			self.close(eServiceReference(ref, 0, path))
+
 	def playBlurayFile(self):
 		if self.playfile:
 			Screens.InfoBar.InfoBar.instance.checkTimeshiftRunning(self.autoBlurayCheckTimeshiftCallback)
@@ -1703,9 +1695,12 @@ class MovieSelection(Screen, SelectionEventInfo, InfoBarBase, ProtectedScreen):
 				# if path ends in '/', p is blank.
 				p = os.path.split(p[0])
 			name = p[1]
+			self.extension = ""
 		else:
 			info = item[1]
 			name = info.getName(item[0])
+			name, self.extension = os.path.splitext(name)
+
 		from Screens.VirtualKeyBoard import VirtualKeyBoard
 		self.session.openWithCallback(self.renameCallback, VirtualKeyBoard,
 			title = _("Rename"),
@@ -1730,7 +1725,7 @@ class MovieSelection(Screen, SelectionEventInfo, InfoBarBase, ProtectedScreen):
 	def renameCallback(self, name):
 		if not name:
 			return
-		name = name.strip()
+		name = "".join((name.strip(), self.extension))
 		item = self.getCurrentSelection()
 		if item and item[0]:
 			try:

@@ -529,7 +529,7 @@ void *eDVBUsbAdapter::vtunerPump()
 		unsigned char pad[64]; /* nobody knows the much data the driver will try to copy into our struct, add some padding to be sure */
 	};
 
-#define DEMUX_BUFFER_SIZE (8 * ((188 / 4) * 4096)) /* 1.5MB */
+#define DEMUX_BUFFER_SIZE (16 * 1024 * 188 ) /* 3 MB */
 	ioctl(demuxFd, DMX_SET_BUFFER_SIZE, DEMUX_BUFFER_SIZE);
 
 	while (running)
@@ -779,7 +779,7 @@ bool eDVBResourceManager::frontendIsCompatible(int index, const char *type)
 			}
 			else if (!strcmp(type, "DVB-C"))
 			{
-#if defined SYS_DVBC_ANNEX_A
+#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
 				return i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_A, false) || i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_C, false);
 #else
 				return i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_AC, false);
@@ -838,7 +838,7 @@ void eDVBResourceManager::setFrontendType(int index, const char *type)
 			}
 			else if (!strcmp(type, "DVB-C"))
 			{
-#if defined SYS_DVBC_ANNEX_A
+#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
 				whitelist.push_back(SYS_DVBC_ANNEX_A);
 				whitelist.push_back(SYS_DVBC_ANNEX_C);
 #else
@@ -1347,6 +1347,8 @@ int tuner_type_channel_default(ePtr<iDVBChannelList> &channellist, const eDVBCha
 						return 40000;
 					case iDVBFrontend::feTerrestrial:
 						return 30000;
+					case iDVBFrontend::feATSC:
+						return 20000;
 					default:
 						break;
 				}

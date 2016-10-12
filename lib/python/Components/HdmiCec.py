@@ -85,7 +85,7 @@ class HdmiCec:
 					if Standby.inStandby is None:
 						Notifications.AddNotification(Standby.Standby)
 					return
-			self.wakeupMessages()
+			self.onLeaveStandby()
 
 	def getPhysicalAddress(self):
 		physicaladdress = eHdmiCEC.getInstance().getPhysicalAddress()

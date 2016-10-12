@@ -115,7 +115,7 @@ void bsodFatal(const char *component)
 		strftime(tm_str, sizeof(tm_str), "%a %b %_d %T %Y", &tm);
 
 		fprintf(f,
-			"OpenPLi Enigma2 crash log\n\n"
+			"Taapat based on OpenPLi Enigma2 crash log\n\n"
 			"crashdate=%s\n"
 			"compiledate=%s\n"
 			"skin=%s\n"
@@ -132,11 +132,11 @@ void bsodFatal(const char *component)
 			component);
 
 		stringFromFile(f, "stbmodel", "/proc/stb/info/boxtype");
-		stringFromFile(f, "stbmodel", "/proc/stb/info/vumodel");
-		stringFromFile(f, "stbmodel", "/proc/stb/info/model");
+		//stringFromFile(f, "stbmodel", "/proc/stb/info/vumodel");
+		//stringFromFile(f, "stbmodel", "/proc/stb/info/model");
 		stringFromFile(f, "kernelcmdline", "/proc/cmdline");
 		stringFromFile(f, "nimsockets", "/proc/bus/nim_sockets");
-		stringFromFile(f, "imageversion", "/etc/image-version");
+		stringFromFile(f, "imageversion", "/etc/issue");
 		stringFromFile(f, "imageissue", "/etc/issue.net");
 
 		/* dump the log ringbuffer */
@@ -169,7 +169,7 @@ void bsodFatal(const char *component)
 	os.clear();
 	os << "We are really sorry. Your STB encountered "
 		"a software problem, and needs to be restarted.\n"
-		"Please send the logfile " << crashlog_name << " to the OpenPLi forum.\n"
+		"Please send the logfile " << crashlog_name << " to http://taapat.blogspot.com.\n"
 		"Your STB restarts in 10 seconds!\n"
 		"Component: " << component;
 
@@ -243,11 +243,11 @@ void bsodFatal(const char *component)
 #if defined(__MIPSEL__)
 void oops(const mcontext_t &context)
 {
-	eDebug("PC: %08lx", (unsigned long)context.pc);
+	eLog(lvlFatal, "PC: %08lx", (unsigned long)context.pc);
 	int i;
 	for (i=0; i<32; i += 4)
 	{
-		eDebug("    %08x %08x %08x %08x",
+		eLog(lvlFatal, "    %08x %08x %08x %08x",
 			(int)context.gregs[i+0], (int)context.gregs[i+1],
 			(int)context.gregs[i+2], (int)context.gregs[i+3]);
 	}
@@ -260,7 +260,7 @@ void handleFatalSignal(int signum, siginfo_t *si, void *ctx)
 	ucontext_t *uc = (ucontext_t*)ctx;
 	oops(uc->uc_mcontext);
 #endif
-	eDebug("-------FATAL SIGNAL");
+	eLog(lvlFatal, "-------FATAL SIGNAL");
 	bsodFatal("enigma2, signal");
 }
 

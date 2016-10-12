@@ -189,21 +189,10 @@
 
 	<map context="InfobarShowHideActions">
 		<key id="KEY_OK" mapto="toggleShow" flags="m"/>
-		<key id="KEY_ENTER" mapto="toggleShow" flags="m"/>
+		<key id="KEY_INFO" mapto="toggleSecondInfoBar" flags="l"/>
 		<key id="KEY_EXIT" mapto="hide" flags="m"/>
-		<key id="KEY_ESC" mapto="hide" flags="m"/>
-		<key id="KEY_OK" mapto="toggleShowLong" flags="l"/>
-		<key id="KEY_ENTER" mapto="toggleShowLong" flags="l"/>
-		<key id="KEY_EXIT" mapto="hideLong" flags="l"/>
-		<key id="KEY_ESC" mapto="hideLong" flags="l"/>
-	</map>
-
-	<map context="InfobarActions">
-		<key id="KEY_VIDEO" mapto="showMovies" flags="m"/>
-		<key id="KEY_RADIO" mapto="showRadio" flags="b"/>
-		<key id="KEY_TV" mapto="showTv" flags="b"/>
 		<key id="KEY_FILE" mapto="showMovies" flags="m"/>
-		<key id="KEY_TEXT" mapto="showText" flags="m"/>
+		<key id="KEY_TV" mapto="toggleTvRadio" flags="m"/>
 	</map>
 
 	<map context="InfobarAudioSelectionActions">
@@ -247,8 +236,6 @@
 			<key id="KEY_FORWARD" mapto="nextSubservice" flags="m"/>
 		</device>
 		<key id="KEY_EXIT" mapto="exit" flags="m"/>
-		<key id="KEY_ESC" mapto="exit" flags="m"/>
-		<key id="KEY_TV" mapto="exit" flags="b"/>
 	</map>
 
 	<map context="GlobalActions">
@@ -362,14 +349,6 @@
 	</map>
 
 	<map context="InfobarTimeshiftActions">
-		<device name="dreambox remote control (native)">
-			<key id="KEY_YELLOW" mapto="timeshiftStart" flags="b"/>
-			<key id="KEY_TV" mapto="timeshiftStop" flags="b"/>
-		</device>
-		<device name="dreambox ir keyboard">
-			<key id="KEY_YELLOW" mapto="timeshiftStart" flags="m"/>
-		</device>
-		<key id="KEY_PLAYPAUSE" mapto="timeshiftStart" flags="m"/>
 		<key id="KEY_PAUSE" mapto="timeshiftStart" flags="m"/>
 		<key id="KEY_STOP" mapto="timeshiftStop" flags="m"/>
 		<key id="KEY_TIME" mapto="timeshiftStart" flags="m"/>
@@ -402,7 +381,6 @@
 	</map>
 
 	<map context="MoviePlayerActions">
-		<key id="KEY_TV" mapto="leavePlayer" flags="b"/>
 		<key id="KEY_STOP" mapto="leavePlayer" flags="m"/>
 		<key id="KEY_EXIT" mapto="leavePlayerOnExit" flags="m"/>
 		<key id="KEY_ESC" mapto="leavePlayerOnExit" flags="m"/>
@@ -517,8 +495,6 @@
 	</map>
 
 	<map context="TvRadioActions">
-		<key id="KEY_TV" mapto="keyTV" flags="b"/>
-		<key id="KEY_RADIO" mapto="keyRadio" flags="b"/>
 	</map>
 
 	<map context="TimerEditActions">
@@ -756,35 +732,8 @@
 		<key id="KEY_INFO" mapto="toggleInfo" flags="m"/>
 		<key id="KEY_CHANNELUP" mapto="nextTitle" flags="m"/>
 		<key id="KEY_CHANNELDOWN" mapto="prevTitle" flags="m"/>
-		<device name="dreambox remote control (native)">
-			<key id="KEY_PREVIOUS" mapto="prevChapter" flags="m"/>
-			<key id="KEY_NEXT" mapto="nextChapter" flags="m"/>
-			<key id="KEY_TV" mapto="tv" flags="m"/>
-			<key id="KEY_AUDIO" mapto="AudioSelection" flags="m"/>
-			<key id="KEY_AUDIO" mapto="dvdAudioMenu" flags="l"/>
-			<key id="KEY_RADIO" mapto="nextAudioTrack" flags="m"/>
-			<key id="KEY_TEXT" mapto="nextSubtitleTrack" flags="m"/>
-			<key id="KEY_VIDEO" mapto="nextAngle" flags="m"/>
-		</device>
-		<device name="dreambox advanced remote control (native)">
-			<key id="KEY_PREVIOUS" mapto="prevChapter" flags="m"/>
-			<key id="KEY_NEXT" mapto="nextChapter" flags="m"/>
-			<key id="KEY_TV" mapto="tv" flags="m"/>
-			<key id="KEY_STOP" mapto="tv" flags="m"/>
-			<key id="KEY_RADIO" mapto="dvdAudioMenu" flags="l"/>
-			<key id="KEY_RADIO" mapto="nextAudioTrack" flags="b"/>
-			<key id="KEY_TEXT" mapto="nextSubtitleTrack" flags="m"/>
-			<key id="KEY_VIDEO" mapto="nextAngle" flags="m"/>
-		</device>
-		<!--device name="dreambox ir keyboard">
-			<key id="KEY_PAUSE" mapto="pause" flags="m"/>
-			<key id="KEY_PLAY" mapto="play" flags="m"/>
-			<key id="KEY_STOP" mapto="stop" flags="b"/>
-			<key id="KEY_STOP" mapto="shift_stop" flags="l"/>
-			<key id="KEY_RECORD" mapto="shift_record" flags="l"/>
-			<key id="KEY_PREVIOUSSONG" mapto="previous" flags="m"/>
-			<key id="KEY_NEXTSONG" mapto="next" flags="m"/>
-		</device-->
+		<key id="KEY_PREVIOUS" mapto="prevChapter" flags="m"/>
+		<key id="KEY_NEXT" mapto="nextChapter" flags="m"/>
 	</map>
 	<map context="HotkeyActions">
 		<key id="KEY_RED" mapto="red" flags="b"/>
@@ -795,22 +744,6 @@
 		<key id="KEY_YELLOW" mapto="yellow_long" flags="l"/>
 		<key id="KEY_BLUE" mapto="blue" flags="b"/>
 		<key id="KEY_BLUE" mapto="blue_long" flags="l"/>
-		<key id="KEY_RECORD" mapto="rec" flags="m"/>
-		<key id="KEY_RADIO" mapto="radio" flags="b"/>
-		<key id="KEY_RADIO" mapto="radio_long" flags="l"/>
-		<key id="KEY_TV" mapto="showTv" flags="b"/>
-		<key id="KEY_TV" mapto="showTv_long" flags="l"/>
-		<key id="KEY_TEXT" mapto="text" flags="m"/>
-		<key id="KEY_HELP" mapto="displayHelp" flags="b"/>
-		<key id="KEY_HELP" mapto="displayHelp_long" flags="l"/>
-	        <key id="KEY_SUBTITLE" mapto="subtitle" flags="m"/>
-	        <key id="KEY_MENU" mapto="mainMenu" flags="m"/>
-	        <key id="KEY_INFO" mapto="info" flags="b"/>
-		<key id="KEY_INFO" mapto="info_long" flags="l"/>
-		<key id="KEY_VIDEO" mapto="list" flags="m"/>
-	        <key id="KEY_BACK" mapto="back" flags="b"/>
-		<key id="KEY_BACK" mapto="back_long" flags="l"/>
-	        <key id="KEY_END" mapto="end" flags="m"/>
 		<key id="KEY_EPG" mapto="epg" flags="b"/>
 		<key id="KEY_EPG" mapto="epg_long" flags="l"/>
 		<key id="KEY_LEFT" mapto="cross_left" flags="m"/>

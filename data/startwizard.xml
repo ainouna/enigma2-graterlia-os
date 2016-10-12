@@ -79,7 +79,7 @@ self.selectKey("LEFT")
 self.selectKey("RIGHT")
 			</code>
 		</step>
-		<step id="nimc">
+		<!--step id="nimc">
 			<condition>
 from Components.NimManager import nimmanager
 self.condition = len(nimmanager.nim_slots) > 2 and not nimmanager.nim_slots[2].empty and not nimmanager.nim_slots[2].isFBCLink()

@@ -1162,7 +1162,7 @@ class PluginDetails(Screen, PackageInfoHandler):
 		self.skin_path = plugin_path
 		self.language = language.getLanguage()[:2] # getLanguage returns e.g. "fi_FI" for "language_country"
 		self.attributes = None
-		PackageInfoHandler.__init__(self, self.statusCallback, blocking = False)
+		PackageInfoHandler.__init__(self, self.statusCallback)
 		self.directory = resolveFilename(SCOPE_METADIR)
 		if packagedata:
 			self.pluginname = packagedata[0]
@@ -1742,16 +1742,23 @@ class PacketManager(Screen, NumericalTextInput):
 			self.packetlist = []
 			last_name = ""
 			for x in result.splitlines():
-				tokens = x.split(' - ')
-				name = tokens[0].strip()
-				if not any(name.endswith(x) for x in self.unwanted_extensions):
-					l = len(tokens)
-					version = l > 1 and tokens[1].strip() or ""
-					descr = l > 2 and tokens[2].strip() or ""
-					if name == last_name:
-						continue
-					last_name = name
-					self.packetlist.append([name, version, descr])
+				if ' - ' in x:
+					tokens = x.split(' - ')
+					name = tokens[0].strip()
+					if name and not any(name.endswith(x) for x in self.unwanted_extensions):
+						l = len(tokens)
+						version = l > 1 and tokens[1].strip() or ""
+						descr = l > 2 and tokens[2].strip() or ""
+						if name == last_name:
+							continue
+						last_name = name
+						self.packetlist.append([name, version, descr])
+				elif len(self.packetlist) > 0:
+					# no ' - ' in the text, assume that this is the description
+					# therefore add this text to the last packet description
+					last_packet = self.packetlist[-1]
+					last_packet[2] = last_packet[2] + x
+					self.packetlist[:-1] + last_packet
 
 		if not self.Console:
 			self.Console = Console()

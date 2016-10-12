@@ -22,7 +22,7 @@ class About(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self.setTitle(_("About"))
-		hddsplit, = skin.parameters.get("AboutHddSplit", (0,))
+		hddsplit = skin.parameters.get("AboutHddSplit", 0)
 
 		AboutText = _("Hardware: ") + about.getHardwareTypeString() + "\n"
 		AboutText += _("CPU: ") + about.getCPUInfoString() + "\n"
@@ -52,7 +52,7 @@ class About(Screen):
 		if fp_version is None or fp_version == 0:
 			fp_version = ""
 		else:
-			fp_version = _("Frontprocessor version: %d") % fp_version
+			fp_version = _("Frontprocessor version: %s") % fp_version
 			AboutText += fp_version + "\n"
 
 		self["FPVersion"] = StaticText(fp_version)
@@ -86,7 +86,10 @@ class About(Screen):
 		else:
 			hddinfo = _("none")
 		self["hddA"] = StaticText(hddinfo)
-		AboutText += hddinfo
+		AboutText += hddinfo + "\n\n" + _("Network Info:")
+		for x in about.GetIPsFromNetworkInterfaces():
+			AboutText += "\n" + x[0] + ": " + x[1]
+
 		self["AboutScrollLabel"] = ScrollLabel(AboutText)
 		self["key_green"] = Button(_("Translations"))
 		self["key_red"] = Button(_("Latest Commits"))
@@ -115,6 +118,7 @@ class About(Screen):
 class TranslationInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
+		self.setTitle(_("Translation"))
 		# don't remove the string out of the _(), or it can't be "translated" anymore.
 
 		# TRANSLATORS: Add here whatever should be shown in the "translator" about screen, up to 6 lines (use \n for newline)
@@ -151,6 +155,7 @@ class TranslationInfo(Screen):
 class CommitInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
+		self.setTitle(_("Latest Commits"))
 		self.skinName = ["CommitInfo", "About"]
 		self["AboutScrollLabel"] = ScrollLabel(_("Please wait"))
 
@@ -171,12 +176,10 @@ class CommitInfo(Screen):
 			("openarp-enigma2-pli-arp", "OpenAR-Project Enigma2"),
 			("openarp-arp-bs", "OpenAR-Project arp-bs"),
 			("openarp-enigma2-plugins-sh4", "Enigma2 sh4 plugins"),
-			("taapat-skin-MetropolisHD", "skin-MetropolisHD"),
+			("enigma2-plugins", "Enigma2 Plugins"),
 			("openarp-e2openplugin-OpenWebif", "AR-P plugin-OpenWebif"),
 			("openarp-driver", "OpenAR-P Driver Sources "),
-			("enigma2-plugin-skins-magic", "Skin Magic"),
-			("tuxtxt", "Tuxtxt"),
-			("enigma2", "Openpli Enigma2")
+			("tuxtxt", "Tuxtxt")
 		]
 		self.cachedProjects = {}
 		self.Timer = eTimer()
@@ -184,44 +187,30 @@ class CommitInfo(Screen):
 		self.Timer.start(50, True)
 
 	def readGithubCommitLogs(self):
+		if 'Taapat' in self.projects[self.project][1]:
+			url = 'https://api.github.com/repos/taapat/%s/commits' % self.projects[self.project][0]
+		else:
+			url = 'https://api.github.com/repos/openpli/%s/commits' % self.projects[self.project][0]
+		commitlog = ""
 		from json import loads
 		from urllib2 import urlopen
-		feed = self.projects[self.project][0]
-		commitlog = 80 * '-' + '\n'
-		commitlog += self.projects[self.project][1] + '\n'
-		commitlog += 80 * '-' + '\n'
-		if "arp-taapat" in feed:
-			url = 'https://bitbucket.org/api/1.0/repositories/Taapat/%s/changesets/?limit=40' % feed
-			try:
-				commits = ''
-				for c in loads(urlopen(url, timeout=5).read()).get('changesets', []):
-					date = c['timestamp']
-					creator = c['author']
-					title = c['message'].split('\n', 1)[0]
-					commits = date + ' ' + creator + '\n' + title + 2 * '\n' + commits
-				commitlog += str(commits)
-				self.cachedProjects[self.projects[self.project][1]] = commitlog.encode('utf-8')
-			except:
-				commitlog = _("Currently the commit log cannot be retrieved - please try later again")
-		else:
-			if "taapat-" in feed:
-				url = 'https://api.github.com/repos/taapat/%s/commits' % feed[7:]
 			elif "openarp-" in feed:
 				url = 'https://api.github.com/repos/openar-p/%s/commits' % feed[8:]
-			else:
-				url = 'https://api.github.com/repos/openpli/%s/commits' % feed
-			try:
-				for c in loads(urlopen(url, timeout=5).read()):
-					creator = c['commit']['author']['name']
-					title = c['commit']['message']
-					if '\n' in title:
-						title = title.split('\n', 1)[0]
-					date = c['commit']['committer']['date'].replace('T', ' ').replace('Z', '')
-					commitlog += date + ' ' + creator + '\n' + title + 2 * '\n'
-				commitlog = commitlog.encode('utf-8')
-				self.cachedProjects[self.projects[self.project][1]] = commitlog
-			except:
-				commitlog = _("Currently the commit log cannot be retrieved - please try later again")
+		try:
+			commitlog += 80 * '-' + '\n'
+			commitlog += url.split('/')[-2] + '\n'
+			commitlog += 80 * '-' + '\n'
+			for c in loads(urlopen(url, timeout=5).read()):
+				creator = c['commit']['author']['name']
+				title = c['commit']['message']
+				if '\n' in title:
+					title = title.split('\n', 1)[0]
+				date = c['commit']['committer']['date'].replace('T', ' ').replace('Z', '')
+				commitlog += date + ' ' + creator + '\n' + title + 2 * '\n'
+			commitlog = commitlog.encode('utf-8')
+			self.cachedProjects[self.projects[self.project][1]] = commitlog
+		except:
+			commitlog = _("Currently the commit log cannot be retrieved - please try later again")
 		self["AboutScrollLabel"].setText(commitlog)
 
 	def updateCommitLogs(self):
@@ -288,9 +277,9 @@ class MemoryInfo(Screen):
 					units = ""
 				else:
 					continue
-				if name.startswith("MemTotal"):
+				if "MemTotal" in name:
 					mem = int(size)
-				if name.startswith("MemFree") or name.startswith("Buffers") or name.startswith("Cached"):
+				if "MemFree" in name or "Buffers" in name or name[:6] == "Cached":
 					free += int(size)
 				if i < rows_in_column:
 					ltext += "".join((name,"\n"))

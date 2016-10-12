@@ -1,3 +1,4 @@
+#include <lib/base/cfile.h>
 #include <lib/base/ebase.h>
 #include <lib/base/eerror.h>
 #include <lib/base/init_num.h>
@@ -13,15 +14,18 @@
 #include <lib/gdi/gpixmap.h>
 #include <string>
 
-void ep3Blit()
-{
-	fbClass *fb = fbClass::getInstance();
-	fb->blit();
-}
+#ifdef ENABLE_GSTREAMER
+#include <lib/base/eenv.h>
+#endif
 
-eServiceFactoryMP3::eServiceFactoryMP3()
+eServiceFactoryLibpl::eServiceFactoryLibpl()
 {
 	ePtr<eServiceCenter> sc;
+
+#ifdef ENABLE_GSTREAMER
+	defaultMP3_Player = (::access(eEnv::resolve("${sysconfdir}/enigma2/mp3player").c_str(), F_OK) >= 0);
+#endif
+
 	eServiceCenter::getPrivInstance(sc);
 	if (sc)
 	{
@@ -60,67 +64,84 @@ eServiceFactoryMP3::eServiceFactoryMP3()
 		extensions.push_back("ifo");
 		extensions.push_back("wmv");
 		extensions.push_back("wma");
-		sc->addServiceFactory(eServiceFactoryMP3::id, this, extensions);
+#ifdef ENABLE_GSTREAMER
+		if (!defaultMP3_Player)
+		{
+			sc->addServiceFactory(eServiceFactoryLibpl::id, this, extensions);
+		}
+		extensions.clear();
+		sc->addServiceFactory(eServiceFactoryLibpl::idServiceLibpl, this, extensions);
+#else
+		sc->addServiceFactory(eServiceFactoryLibpl::id, this, extensions);
+#endif
 	}
 
-	m_service_info = new eStaticServiceMP3Info();
+	m_service_info = new eStaticServiceLibplInfo();
 }
 
-eServiceFactoryMP3::~eServiceFactoryMP3()
+eServiceFactoryLibpl::~eServiceFactoryLibpl()
 {
 	ePtr<eServiceCenter> sc;
 	eServiceCenter::getPrivInstance(sc);
 
 	if (sc)
-		sc->removeServiceFactory(eServiceFactoryMP3::id);
+#ifdef ENABLE_GSTREAMER
+		sc->removeServiceFactory(eServiceFactoryLibpl::idServiceLibpl);
+		if (!defaultMP3_Player)
+		{
+			sc->removeServiceFactory(eServiceFactoryLibpl::id);
+		}
+#else
+		sc->removeServiceFactory(eServiceFactoryLibpl::id);
+#endif
 }
 
-DEFINE_REF(eServiceFactoryMP3)
+DEFINE_REF(eServiceFactoryLibpl)
 
 // iServiceHandler
-RESULT eServiceFactoryMP3::play(const eServiceReference &ref, ePtr<iPlayableService> &ptr)
+RESULT eServiceFactoryLibpl::play(const eServiceReference &ref, ePtr<iPlayableService> &ptr)
 {
 	// check resources...
-	ptr = new eServiceMP3(ref);
+	ptr = new eServiceLibpl(ref);
 	return 0;
 }
 
-RESULT eServiceFactoryMP3::record(const eServiceReference &ref, ePtr<iRecordableService> &ptr)
+RESULT eServiceFactoryLibpl::record(const eServiceReference &ref, ePtr<iRecordableService> &ptr)
 {
 	ptr=0;
 	return -1;
 }
 
-RESULT eServiceFactoryMP3::list(const eServiceReference &, ePtr<iListableService> &ptr)
+RESULT eServiceFactoryLibpl::list(const eServiceReference &, ePtr<iListableService> &ptr)
 {
 	ptr=0;
 	return -1;
 }
 
-RESULT eServiceFactoryMP3::info(const eServiceReference &ref, ePtr<iStaticServiceInformation> &ptr)
+RESULT eServiceFactoryLibpl::info(const eServiceReference &ref, ePtr<iStaticServiceInformation> &ptr)
 {
 	ptr = m_service_info;
 	return 0;
 }
 
-class eMP3ServiceOfflineOperations: public iServiceOfflineOperations
+class eLibplServiceOfflineOperations: public iServiceOfflineOperations
 {
-	DECLARE_REF(eMP3ServiceOfflineOperations);
+	DECLARE_REF(eLibplServiceOfflineOperations);
 	eServiceReference m_ref;
 public:
-	eMP3ServiceOfflineOperations(const eServiceReference &ref);
+	eLibplServiceOfflineOperations(const eServiceReference &ref);
 	RESULT deleteFromDisk(int simulate);
 	RESULT getListOfFilenames(std::list<std::string> &);
 	RESULT reindex();
 };
 
-DEFINE_REF(eMP3ServiceOfflineOperations);
+DEFINE_REF(eLibplServiceOfflineOperations);
 
-eMP3ServiceOfflineOperations::eMP3ServiceOfflineOperations(const eServiceReference &ref): m_ref((const eServiceReference&)ref)
+eLibplServiceOfflineOperations::eLibplServiceOfflineOperations(const eServiceReference &ref): m_ref((const eServiceReference&)ref)
 {
 }
 
-RESULT eMP3ServiceOfflineOperations::deleteFromDisk(int simulate)
+RESULT eLibplServiceOfflineOperations::deleteFromDisk(int simulate)
 {
 	if (!simulate)
 	{
@@ -129,10 +150,10 @@ RESULT eMP3ServiceOfflineOperations::deleteFromDisk(int simulate)
 			return -1;
 		eBackgroundFileEraser *eraser = eBackgroundFileEraser::getInstance();
 		if (!eraser)
-			eDebug("[eServiceMP3::%s] FATAL !! can't get background file eraser", __func__);
+			eDebug("[eServiceLibpl::%s] FATAL !! can't get background file eraser", __func__);
 		for (std::list<std::string>::iterator i(res.begin()); i != res.end(); ++i)
 		{
-			eDebug("[eServiceMP3::%s] Removing %s...", __func__, i->c_str());
+			eDebug("[eServiceLibpl::%s] Removing %s...", __func__, i->c_str());
 			if (eraser)
 				eraser->erase(i->c_str());
 			else
@@ -143,42 +164,42 @@ RESULT eMP3ServiceOfflineOperations::deleteFromDisk(int simulate)
 	return 0;
 }
 
-RESULT eMP3ServiceOfflineOperations::getListOfFilenames(std::list<std::string> &res)
+RESULT eLibplServiceOfflineOperations::getListOfFilenames(std::list<std::string> &res)
 {
 	res.clear();
 	res.push_back(m_ref.path);
 	return 0;
 }
 
-RESULT eMP3ServiceOfflineOperations::reindex()
+RESULT eLibplServiceOfflineOperations::reindex()
 {
 	return -1;
 }
 
 
-RESULT eServiceFactoryMP3::offlineOperations(const eServiceReference &ref, ePtr<iServiceOfflineOperations> &ptr)
+RESULT eServiceFactoryLibpl::offlineOperations(const eServiceReference &ref, ePtr<iServiceOfflineOperations> &ptr)
 {
-	ptr = new eMP3ServiceOfflineOperations(ref);
+	ptr = new eLibplServiceOfflineOperations(ref);
 	return 0;
 }
 
-// eStaticServiceMP3Info
+// eStaticServiceLibplInfo
 
 
-// eStaticServiceMP3Info is seperated from eServiceMP3 to give information
+// eStaticServiceLibplInfo is seperated from eServiceLibpl to give information
 // about unopened files.
 
-// probably eServiceMP3 should use this class as well, and eStaticServiceMP3Info
+// probably eServiceLibpl should use this class as well, and eStaticServiceLibplInfo
 // should have a database backend where ID3-files etc. are cached.
 // this would allow listing the mp3 database based on certain filters.
 
-DEFINE_REF(eStaticServiceMP3Info)
+DEFINE_REF(eStaticServiceLibplInfo)
 
-eStaticServiceMP3Info::eStaticServiceMP3Info()
+eStaticServiceLibplInfo::eStaticServiceLibplInfo()
 {
 }
 
-RESULT eStaticServiceMP3Info::getName(const eServiceReference &ref, std::string &name)
+RESULT eStaticServiceLibplInfo::getName(const eServiceReference &ref, std::string &name)
 {
 	if ( ref.name.length() )
 		name = ref.name;
@@ -194,12 +215,12 @@ RESULT eStaticServiceMP3Info::getName(const eServiceReference &ref, std::string 
 	return 0;
 }
 
-int eStaticServiceMP3Info::getLength(const eServiceReference &ref)
+int eStaticServiceLibplInfo::getLength(const eServiceReference &ref)
 {
 	return -1;
 }
 
-int eStaticServiceMP3Info::getInfo(const eServiceReference &ref, int w)
+int eStaticServiceLibplInfo::getInfo(const eServiceReference &ref, int w)
 {
 	switch (w)
 	{
@@ -226,7 +247,7 @@ int eStaticServiceMP3Info::getInfo(const eServiceReference &ref, int w)
 	return iServiceInformation::resNA;
 }
 
-long long eStaticServiceMP3Info::getFileSize(const eServiceReference &ref)
+long long eStaticServiceLibplInfo::getFileSize(const eServiceReference &ref)
 {
 	struct stat s;
 	if (stat(ref.path.c_str(), &s) == 0)
@@ -237,12 +258,12 @@ long long eStaticServiceMP3Info::getFileSize(const eServiceReference &ref)
 	return 0;
 }
 
-RESULT eStaticServiceMP3Info::getEvent(const eServiceReference &ref, ePtr<eServiceEvent> &evt, time_t start_time)
+RESULT eStaticServiceLibplInfo::getEvent(const eServiceReference &ref, ePtr<eServiceEvent> &evt, time_t start_time)
 {
 	if (ref.path.find("://") != std::string::npos)
 	{
 		eServiceReference equivalentref(ref);
-		equivalentref.type = eServiceFactoryMP3::id;
+		equivalentref.type = eServiceFactoryLibpl::id;
 		equivalentref.path.clear();
 		return eEPGCache::getInstance()->lookupEventTime(equivalentref, start_time, evt);
 	}
@@ -251,9 +272,9 @@ RESULT eStaticServiceMP3Info::getEvent(const eServiceReference &ref, ePtr<eServi
 	return -1;
 }
 
-DEFINE_REF(eStreamBufferInfo)
+DEFINE_REF(eStreamLibplBufferInfo)
 
-eStreamBufferInfo::eStreamBufferInfo(int percentage, int inputrate, int outputrate, int space, int size)
+eStreamLibplBufferInfo::eStreamLibplBufferInfo(int percentage, int inputrate, int outputrate, int space, int size)
 : bufferPercentage(percentage),
 	inputRate(inputrate),
 	outputRate(outputrate),
@@ -262,91 +283,66 @@ eStreamBufferInfo::eStreamBufferInfo(int percentage, int inputrate, int outputra
 {
 }
 
-int eStreamBufferInfo::getBufferPercentage() const
+int eStreamLibplBufferInfo::getBufferPercentage() const
 {
 	return bufferPercentage;
 }
 
-int eStreamBufferInfo::getAverageInputRate() const
+int eStreamLibplBufferInfo::getAverageInputRate() const
 {
 	return inputRate;
 }
 
-int eStreamBufferInfo::getAverageOutputRate() const
+int eStreamLibplBufferInfo::getAverageOutputRate() const
 {
 	return outputRate;
 }
 
-int eStreamBufferInfo::getBufferSpace() const
+int eStreamLibplBufferInfo::getBufferSpace() const
 {
 	return bufferSpace;
 }
 
-int eStreamBufferInfo::getBufferSize() const
+int eStreamLibplBufferInfo::getBufferSize() const
 {
 	return bufferSize;
 }
 
-eServiceMP3 *eServiceMP3::instance;
+eServiceLibpl *eServiceLibpl::instance;
 
-eServiceMP3 *eServiceMP3::getInstance()
+eServiceLibpl *eServiceLibpl::getInstance()
 {
 	return instance;
 }
 
-eServiceMP3::eServiceMP3(eServiceReference ref):
+eServiceLibpl::eServiceLibpl(eServiceReference ref):
 	m_nownext_timer(eTimer::create(eApp)),
 	m_cuesheet_changed(0),
 	m_cutlist_enabled(1),
 	m_ref(ref),
 	m_pump(eApp, 1)
 {
-	eDebug("[eServiceMP3::%s]", __func__);
+	eDebug("[eServiceLibpl::%s]", __func__);
+	m_subtitle_pages = NULL;
 	m_currentAudioStream = -1;
 	m_currentSubtitleStream = -1;
-	m_cachedSubtitleStream = -1; /* report the first subtitle stream to be 'cached'. TODO: use an actual cache. */
+	m_cachedSubtitleStream = -2; /* report subtitle stream to be 'cached'. TODO: use an actual cache. */
 	m_subtitle_widget = 0;
 	m_buffer_size = 5 * 1024 * 1024;
+	m_paused = false;
+	is_streaming = false;
 	m_cuesheet_loaded = false; /* cuesheet CVR */
+	m_use_chapter_entries = false; /* chapter support CVR */
+	m_subtitle_sync_timer = eTimer::create(eApp);
+	CONNECT(m_subtitle_sync_timer->timeout, eServiceLibpl::pushSubtitles);
 	inst_m_pump = &m_pump;
-	CONNECT(m_nownext_timer->timeout, eServiceMP3::updateEpgCacheNowNext);
-	CONNECT(inst_m_pump->recv_msg, eServiceMP3::gotThreadMessage);
-	m_aspect = m_width = m_height = m_framerate = m_progressive = -1;
+	CONNECT(m_nownext_timer->timeout, eServiceLibpl::updateEpgCacheNowNext);
+	CONNECT(inst_m_pump->recv_msg, eServiceLibpl::gotThreadMessage);
+	m_width = m_height = m_aspect = m_framerate = m_progressive = -1;
 	m_state = stIdle;
 	instance = this;
 
-	player = (Context_t*) malloc(sizeof(Context_t));
-
-	if (player)
-	{
-		player->playback  = &PlaybackHandler;
-		player->output    = &OutputHandler;
-		player->container = &ContainerHandler;
-		player->manager   = &ManagerHandler;
-		eDebug("[eServiceMP3::%s] %s", __func__, player->output->Name);
-	}
-
-	//Registration of output devices
-	if (player && player->output)
-	{
-		player->output->Command(player,OUTPUT_ADD, (void*)"audio");
-		player->output->Command(player,OUTPUT_ADD, (void*)"video");
-		player->output->Command(player,OUTPUT_ADD, (void*)"subtitle");
-	}
-
-	if (player && player->output && player->output->subtitle)
-	{
-		fbClass *fb = fbClass::getInstance();
-		SubtitleOutputDef_t out;
-		out.screen_width = fb->getScreenResX();
-		out.screen_height = fb->getScreenResY();
-		out.shareFramebuffer = 1;
-		out.framebufferFD = fb->getFD();
-		out.destination = fb->getLFB_Direct();
-		out.destStride = fb->Stride();
-		out.framebufferBlit = ep3Blit;
-		player->output->subtitle->Command(player, (OutputCmd_t)OUTPUT_SET_SUBTITLE_OUTPUT, (void*) &out);
-	}
+	player = new Player();
 
 	//create playback path
 	char file[1023] = {""};
@@ -359,6 +355,7 @@ eServiceMP3::eServiceMP3(eServiceReference ref):
 	|| (!strncmp("hls://", m_ref.path.c_str(), 6))
 	|| (!strncmp("hls+http://", m_ref.path.c_str(), 11))
 	|| (!strncmp("httpproxy://", m_ref.path.c_str(), 12))
+	|| (!strncmp("mms://", m_ref.path.c_str(), 6))
 	|| (!strncmp("mmsh://", m_ref.path.c_str(), 7))
 	|| (!strncmp("mmst://", m_ref.path.c_str(), 7))
 	|| (!strncmp("rtmp://", m_ref.path.c_str(), 7))
@@ -374,134 +371,115 @@ eServiceMP3::eServiceMP3(eServiceReference ref):
 	|| (!strncmp("tls://", m_ref.path.c_str(), 6))
 	|| (!strncmp("udp://", m_ref.path.c_str(), 6))
 	|| (!strncmp("udplite://", m_ref.path.c_str(), 10)))
-		m_sourceinfo.is_streaming = true;
+		is_streaming = true;
 	else if ((!strncmp("file://", m_ref.path.c_str(), 7))
 	|| (!strncmp("bluray://", m_ref.path.c_str(), 9))
 	|| (!strncmp("hls+file://", m_ref.path.c_str(), 11))
 	|| (!strncmp("myts://", m_ref.path.c_str(), 7)))
-		;
+		is_streaming = false;
 	else
 		strcat(file, "file://");
 
-	strcat(file, m_ref.path.c_str());
+	// try parse HLS master playlist to use streams from it
+	size_t delim_idx = m_ref.path.rfind(".");
+	if(!strncmp("http", m_ref.path.c_str(), 4) && delim_idx != std::string::npos && !m_ref.path.compare(delim_idx, 5, ".m3u8"))
+	{
+		M3U8VariantsExplorer ve(m_ref.path);
+		std::vector<M3U8StreamInfo> m_stream_vec = ve.getStreams();
+		if (m_stream_vec.empty())
+		{
+			eDebug("[eServiceLibpl::%s] failed to retrieve m3u8 streams", __func__);
+			strcat(file, m_ref.path.c_str());
+		}
+		else
+		{
+			// sort streams from best quality to worst (internally sorted according to bitrate)
+			sort(m_stream_vec.rbegin(), m_stream_vec.rend());
+			unsigned int bitrate = eConfigManager::getConfigIntValue("config.streaming.connectionSpeedInKb") * 1000L;
+			std::vector<M3U8StreamInfo>::const_iterator it(m_stream_vec.begin());
+			while(!(it == m_stream_vec.end() || it->bitrate <= bitrate))
+			{
+				it++;
+			}
+			eDebug("[eServiceLibpl::%s] play stream (%lu b/s) selected according to connection speed (%d b/s)",
+				__func__, it->bitrate, bitrate);
+			strcat(file, it->url.c_str());
+		}
+	}
+	else
+		strcat(file, m_ref.path.c_str());
 
 	//try to open file
-	if (player && player->playback && player->playback->Command(player, PLAYBACK_OPEN, file) >= 0)
+	if (player->Open(file, is_streaming, ""))
 	{
-		//VIDEO
-		//We dont have to register video tracks, or do we ?
-		//AUDIO
-		if (player && player->manager && player->manager->audio)
+		eDebug("[eServiceLibpl::%s] Open file!", __func__);
+
+		std::vector<Track> tracks = player->getAudioTracks();
+		if(!tracks.empty())
 		{
-			char ** TrackList = NULL;
-			player->manager->audio->Command(player, MANAGER_LIST, &TrackList);
-			if (TrackList != NULL)
+			eDebug("[eServiceLibpl::%s] Audio track list:", __func__);
+			for (std::vector<Track>::iterator it = tracks.begin(); it != tracks.end(); ++it) 
 			{
-				eDebug("[eServiceMP3::%s] AudioTrack List:", __func__);
-				int i = 0;
-				for (i = 0; TrackList[i] != NULL; i+=2)
-				{
-					eDebug("[eServiceMP3::%s]\t%s - %s", __func__, TrackList[i], TrackList[i+1]);
-					audioStream audio;
-					audio.language_code = TrackList[i];
+				eDebug("[eServiceLibpl::%s]    Id:%i type:%i language:%s", __func__, it->pid, it->type, it->title.c_str());
+				audioStream audio;
+				audio.language_code = it->title;
+				audio.pid = it->pid;
+				audio.type = it->type;
 
-					// atUnknown, atMPEG, atMP3, atAC3, atDTS, atAAC, atPCM, atOGG, atFLAC
-					if (    !strncmp("A_MPEG/L3",   TrackList[i+1], 9))
-						audio.type = atMP3;
-					else if (!strncmp("A_MP3",      TrackList[i+1], 5))
-						audio.type = atMP3;
-					else if (!strncmp("A_AC3",      TrackList[i+1], 5))
-						audio.type = atAC3;
-					else if (!strncmp("A_DTS",      TrackList[i+1], 5))
-						audio.type = atDTS;
-					else if (!strncmp("A_AAC",      TrackList[i+1], 5))
-						audio.type = atAAC;
-					else if (!strncmp("A_PCM",      TrackList[i+1], 5))
-						audio.type = atPCM;
-					else if (!strncmp("A_VORBIS",   TrackList[i+1], 8))
-						audio.type = atOGG;
-					else if (!strncmp("A_FLAC",     TrackList[i+1], 6))
-						audio.type = atFLAC;
-					else
-						audio.type = atUnknown;
+				m_audioStreams.push_back(audio);
+			}
+			m_currentAudioStream = 0;
+		}
 
-					m_audioStreams.push_back(audio);
-					free(TrackList[i]);
-					TrackList[i] = NULL;
-					free(TrackList[i+1]);
-					TrackList[i+1] = NULL;
-				}
-				free(TrackList);
-				TrackList = NULL;
+		tracks = player->getSubtitleTracks();
+		if(!tracks.empty())
+		{
+			eDebug("[eServiceLibpl::%s] Subtitle track list:", __func__);
+			for (std::vector<Track>::iterator it = tracks.begin(); it != tracks.end(); ++it) 
+			{
+				eDebug("[eServiceLibpl::%s]    Id:%i type:%i language:%s", __func__, it->pid, it->type, it->title.c_str());
+				subtitleStream subtitle;
+				subtitle.language_code = it->title;
+				subtitle.id = it->pid;
+				subtitle.type = it->type;
+
+				m_subtitleStreams.push_back(subtitle);
 			}
 		}
 
-		//SUB
-		if (player && player->manager && player->manager->subtitle)
-		{
-			char ** TrackList = NULL;
-			player->manager->subtitle->Command(player, MANAGER_LIST, &TrackList);
-			if (TrackList != NULL)
-			{
-				eDebug("[eServiceMP3::%s] SubtitleTrack List:", __func__);
-				int i = 0;
-				for (i = 0; TrackList[i] != NULL; i+=2)
-				{
-					eDebug("[eServiceMP3::%s]\t%s - %s", __func__, TrackList[i], TrackList[i+1]);
-					subtitleStream sub;
-					sub.language_code = TrackList[i];
-
-					//  stPlainText, stSSA, stSRT
-					if (     !strncmp("S_TEXT/SSA",   TrackList[i+1], 10) ||
-							!strncmp("S_SSA", TrackList[i+1], 5))
-						sub.type = stSSA;
-					else if (!strncmp("S_TEXT/ASS",   TrackList[i+1], 10) ||
-							!strncmp("S_AAS", TrackList[i+1], 5))
-						sub.type = stSSA;
-					else if (!strncmp("S_TEXT/SRT",   TrackList[i+1], 10) ||
-							!strncmp("S_SRT", TrackList[i+1], 5))
-						sub.type = stSRT;
-					else
-						sub.type = stPlainText;
-
-					m_subtitleStreams.push_back(sub);
-					free(TrackList[i]);
-					TrackList[i] = NULL;
-					free(TrackList[i+1]);
-					TrackList[i+1] = NULL;
-				}
-				free(TrackList);
-				TrackList = NULL;
-			}
-		}
 		loadCuesheet(); /* cuesheet CVR */
-		m_event(this, evStart);
+
+		if (!strncmp(file, "file://", 7)) /* text subtitles */
+			ReadTextSubtitles(file);
 	}
 	else
 	{
 		//Creation failed, no playback support for insert file, so send e2 EOF to stop playback
-		eDebug("[eServiceMP3::%s] ERROR! Creation failed! No playback support for insert file!", __func__);
-		m_state = stRunning;
-		m_event(this, evEOF);
+		eDebug("[eServiceLibpl::%s] ERROR! Creation failed! No playback support for insert file!", __func__);
+		m_state = stStopped;
+		m_event((iPlayableService*)this, evEOF);
+		m_event((iPlayableService*)this, evUser+12);
 	}
 }
 
-eServiceMP3::~eServiceMP3()
+eServiceLibpl::~eServiceLibpl()
 {
 	if (m_subtitle_widget) m_subtitle_widget->destroy();
 	m_subtitle_widget = 0;
 
 	if (m_state == stRunning)
 		stop();
+
+	delete player;
 }
 
-void eServiceMP3::updateEpgCacheNowNext()
+void eServiceLibpl::updateEpgCacheNowNext()
 {
 	bool update = false;
 	ePtr<eServiceEvent> next = 0;
 	ePtr<eServiceEvent> ptr = 0;
 	eServiceReference ref(m_ref);
-	ref.type = eServiceFactoryMP3::id;
+	ref.type = eServiceFactoryLibpl::id;
 	ref.path.clear();
 
 	if (eEPGCache::getInstance() && eEPGCache::getInstance()->lookupEventTime(ref, -1, ptr) >= 0)
@@ -546,75 +524,431 @@ void eServiceMP3::updateEpgCacheNowNext()
 	}
 }
 
-DEFINE_REF(eServiceMP3);
+void eServiceLibpl::ReadSrtSubtitle(const char *subfile, int delay, double convert_fps)
+{
+	int horIni, minIni, secIni, milIni, horFim, minFim, secFim, milFim;
+	char *Text = NULL;
 
-RESULT eServiceMP3::connectEvent(const Slot2<void,iPlayableService*,int> &event, ePtr<eConnection> &connection)
+	CFile f(subfile, "rt");
+	if (f)
+	{
+		int pos = 0;
+		int64_t start_ms = 0;
+		int64_t end_ms = 0;
+		size_t bufsize = 256;
+		char *line = (char*) malloc(bufsize);
+		while (getline(&line, &bufsize, f) != -1)
+		{
+			/*
+			00:02:17,440 --> 00:02:20,375
+			Senator, we're making
+			our final approach into Coruscant.
+			*/
+			if(pos == 0)
+			{
+				if(line[0] == '\n' || line[0] == '\0' || line[0] == 13 /* ^M */)
+					continue; /* Empty line not allowed here */
+				pos++;
+			}
+			else if(pos == 1)
+			{
+				if (sscanf(line, "%d:%d:%d%*1[,.]%d --> %d:%d:%d%*1[,.]%d",
+					&horIni, &minIni, &secIni, &milIni, &horFim, &minFim, &secFim, &milFim) != 8)
+				{
+					continue; /* Data is not in correct format */
+				}
+
+				start_ms = ((horIni * 3600 + minIni * 60 + secIni) * 1000 + milIni) * convert_fps + delay;
+				end_ms = ((horFim * 3600 + minFim * 60 + secFim) * 1000  + milFim) * convert_fps + delay;
+				pos++;
+			}
+			else if(pos == 2)
+			{
+				if(line[0] == '\n' || line[0] == '\0' || line[0] == 13 /* ^M */)
+				{
+					if(Text != NULL)
+					{
+						int sl = strlen(Text)-1;
+						Text[sl]='\0'; /* Set last to \0, to replace \n or \r if exist */
+
+						subtitleData sub;
+						sub.start_ms = start_ms;
+						sub.duration_ms = end_ms - start_ms;
+						sub.end_ms = end_ms;
+						sub.text = (const char *)Text;
+
+						m_srt_subtitle_pages.insert(subtitle_pages_map_pair(sub.end_ms, sub));
+						free(Text);
+						Text = NULL;
+					}
+					pos = 0;
+					continue;
+				}
+
+				if(!Text)
+				{
+					Text = strdup(line);
+				}
+				else
+				{
+					int length = strlen(Text) /* \0 -> \n */ + strlen(line) + 2 /* \0 */;
+					char *tmpText = Text;
+					Text = (char *)malloc(length);
+
+					strcpy(Text, tmpText);
+					strcat(Text, line);
+					free(tmpText);
+				}
+			}
+		} /* while */
+		if(Text != NULL)
+		{
+			free(Text);
+			Text = NULL;
+		}
+	}
+
+	if(!m_srt_subtitle_pages.empty())
+	{
+		subtitleStream sub;
+		sub.language_code = "SRT";
+		sub.type = 4;
+		m_subtitleStreams.push_back(sub);
+	}
+}
+
+void eServiceLibpl::ReadSsaSubtitle(const char *subfile, int isASS, int delay, double convert_fps)
+{
+	int horIni, minIni, secIni, milIni, horFim, minFim, secFim, milFim;
+	char *Text = NULL;
+
+	CFile f(subfile, "rt");
+	if (f)
+	{
+		size_t bufsize = 256;
+		char *line = (char*) malloc(bufsize);
+		while (getline(&line, &bufsize, f) != -1)
+		{
+			/*
+			Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+			Dialogue: Marked=0,0:02:40.65,0:02:41.79,Wolf main,Cher,0000,0000,0000,,Hello world!
+			*/
+			if(line[0]  != 'D')
+				continue; /* Skip line without Dialogue */
+
+			int i = 0;
+			int ret = 0;
+			char *p_newline = NULL;
+			char *ptr = line;
+
+			while(i < 10 && *ptr != '\0')
+			{
+				if (*ptr == ',')
+				{
+					i++;
+				}
+				ptr++;
+				if (i == 1)
+				{
+					ret = sscanf(ptr, "%d:%d:%d.%d,%d:%d:%d.%d,", &horIni, &minIni, &secIni, &milIni, &horFim, &minFim, &secFim, &milFim);
+					i++;
+				}
+			}
+
+			if (ret != 8)
+			{
+				continue; /* Data is not in correct format */
+			}
+
+			int64_t start_ms = ((horIni * 3600 + minIni * 60 + secIni) * 1000 + milIni) * convert_fps + delay;
+			int64_t end_ms = ((horFim * 3600 + minFim * 60 + secFim) * 1000  + milFim) * convert_fps + delay;
+
+			/* standardize hard break: '\N'->'\n' http://docs.aegisub.org/3.2/ASS_Tags/ */
+			while((p_newline = strstr(ptr, "\\N")) != NULL)
+			{
+				*(p_newline + 1) = 'n';
+			}
+
+			Text = strdup(ptr);
+			int sl = strlen(Text)-1;
+			Text[sl]='\0'; /* Set last to \0, to replace \n or \r if exist */
+
+			if(Text != NULL)
+			{
+				subtitleData sub;
+				sub.start_ms = start_ms;
+				sub.duration_ms = end_ms - start_ms;
+				sub.end_ms = end_ms;
+				sub.text = (const char *)Text;
+
+				if (isASS)
+				{
+					m_ass_subtitle_pages.insert(subtitle_pages_map_pair(sub.end_ms, sub));
+				}
+				else
+				{
+					m_ssa_subtitle_pages.insert(subtitle_pages_map_pair(sub.end_ms, sub));
+				}
+				free(Text);
+				Text = NULL;
+			}
+		} /* while */
+	}
+
+	if(!m_ass_subtitle_pages.empty() || !m_ssa_subtitle_pages.empty())
+	{
+		subtitleStream sub;
+		if (isASS)
+		{
+			sub.language_code = "ASS";
+			sub.type = 3;
+		}
+		else
+		{
+			sub.language_code = "SSA";
+			sub.type = 2;
+		}
+		m_subtitleStreams.push_back(sub);
+	}
+}
+
+void eServiceLibpl::ReadTextSubtitles(const char *filename)
+{
+	int delay = eConfigManager::getConfigIntValue("config.subtitles.pango_subtitles_delay") / 90;
+	int subtitle_fps = eConfigManager::getConfigIntValue("config.subtitles.pango_subtitles_fps");
+
+	double convert_fps = 1.0;
+	if (subtitle_fps > 1 && m_framerate > 0)
+		convert_fps = subtitle_fps / (double)m_framerate;
+
+	filename += 7; // remove 'file://'
+	const char *lastDot = strrchr(filename, '.');
+	if (!lastDot)
+		return;
+	char subfile[strlen(filename) + 3];
+
+	strcpy(subfile, filename);
+	strcpy(subfile + (lastDot + 1 - filename), "srt");
+	if (::access(subfile, R_OK) == 0)
+	{
+		eDebug("[eServiceLibpl::%s] add %s", __func__, subfile);
+		ReadSrtSubtitle(subfile, delay, convert_fps);
+	}
+
+	strcpy(subfile, filename);
+	strcpy(subfile + (lastDot + 1 - filename), "ass");
+	if (::access(subfile, R_OK) == 0)
+	{
+		eDebug("[eServiceLibpl::%s] add %s", __func__, subfile);
+		ReadSsaSubtitle(subfile, 0, delay, convert_fps);
+	}
+
+	strcpy(subfile, filename);
+	strcpy(subfile + (lastDot + 1 - filename), "ssa");
+	if (::access(subfile, R_OK) == 0)
+	{
+		eDebug("[eServiceLibpl::%s] add %s", __func__, subfile);
+		ReadSsaSubtitle(subfile, 1, delay, convert_fps);
+	}
+}
+
+void eServiceLibpl::pullTextSubtitles(int type)
+{
+	eDebug("[eServiceLibpl::%s] type %d", __func__, type);
+
+	if (type == 4)
+	{
+		m_subtitle_pages = &m_srt_subtitle_pages;
+	}
+	else if (type == 3)
+	{
+		m_subtitle_pages = &m_ass_subtitle_pages;
+	}
+	else
+	{
+		m_subtitle_pages = &m_ssa_subtitle_pages;
+	}
+
+	m_subtitle_sync_timer->start(1, true);
+}
+
+void eServiceLibpl::pullSubtitle()
+{
+	if(m_state != stRunning)
+		return;
+
+	subtitle_pages_map embedded_subtitle;
+	if (!player->GetSubtitles(embedded_subtitle))
+		return;
+
+	int delay = eConfigManager::getConfigIntValue("config.subtitles.pango_subtitles_delay") / 90;
+	int subtitle_fps = eConfigManager::getConfigIntValue("config.subtitles.pango_subtitles_fps");
+
+	double convert_fps = 1.0;
+		if (subtitle_fps > 1 && m_framerate > 0)
+			convert_fps = subtitle_fps / (double)m_framerate;
+
+	for (subtitle_pages_map::iterator current = embedded_subtitle.begin(); current != embedded_subtitle.end(); current++)
+	{
+		subtitleData sub = current->second;
+		sub.start_ms = sub.start_ms * convert_fps + delay;
+		sub.end_ms = sub.start_ms + sub.duration_ms;
+		m_emb_subtitle_pages.insert(subtitle_pages_map_pair(sub.end_ms, sub));
+	}
+	embedded_subtitle.clear();
+	m_subtitle_sync_timer->start(1, true);
+}
+
+void eServiceLibpl::pushSubtitles()
+{
+	if (!m_subtitle_pages)
+		return;
+
+	pts_t running_pts = 0;
+	int32_t next_timer = 0, decoder_ms, start_ms, end_ms, diff_start_ms, diff_end_ms;
+	subtitle_pages_map::const_iterator current;
+
+	if (getPlayPosition(running_pts) < 0)
+	{
+		next_timer = 50;
+		goto exit;
+	}
+
+	decoder_ms = running_pts / 90;
+
+	for (current = m_subtitle_pages->lower_bound(decoder_ms); current != m_subtitle_pages->end(); current++)
+	{
+		start_ms = current->second.start_ms;
+		end_ms = current->second.end_ms;
+		diff_start_ms = start_ms - decoder_ms;
+		diff_end_ms = end_ms - decoder_ms;
+
+		// eDebug("[eServiceLibpl::%s] *** next subtitle: decoder: %d, start: %d, end: %d, duration_ms: %d, diff_start: %d, diff_end: %d : %s", __func__, decoder_ms, start_ms, end_ms, end_ms - start_ms, diff_start_ms, diff_end_ms, current->second.text.c_str());
+
+		if (diff_end_ms < 0)
+		{
+			// eDebug("[eServiceLibpl::%s] *** current sub has already ended, skip: %d", __func__, diff_end_ms);
+			continue;
+		}
+		if (diff_start_ms > 50)
+		{
+			// eDebug("[eServiceLibpl::%s] *** current sub in the future, start timer, %d", __func__, diff_start_ms);
+			next_timer = diff_start_ms;
+			goto exit;
+		}
+		if (m_subtitle_widget && !m_paused)
+		{
+			// eDebug("[eServiceLibpl::%s] current sub actual, show!", __func__);
+
+			ePangoSubtitlePage pango_page;
+			gRGB rgbcol(0xD0,0xD0,0xD0);
+
+			pango_page.m_elements.push_back(ePangoSubtitlePageElement(rgbcol, current->second.text.c_str()));
+			pango_page.m_show_pts = start_ms * 90; // actually completely unused by widget!
+			pango_page.m_timeout = end_ms - decoder_ms; // take late start into account
+
+			m_subtitle_widget->setPage(pango_page);
+		}
+	}
+
+exit:
+	if (next_timer == 0)
+	{
+		// eDebug("[eServiceLibpl::%s] *** next timer = 0, set default timer!", __func__);
+		next_timer = 1000;
+	}
+
+	m_subtitle_sync_timer->start(next_timer, true);
+}
+
+DEFINE_REF(eServiceLibpl);
+
+RESULT eServiceLibpl::connectEvent(const Slot2<void,iPlayableService*,int> &event, ePtr<eConnection> &connection)
 {
 	connection = new eConnection((iPlayableService*)this, m_event.connect(event));
 	m_event(this, evSeekableStatusChanged);
 	return 0;
 }
 
-RESULT eServiceMP3::start()
+RESULT eServiceLibpl::start()
 {
 	if (m_state != stIdle)
 	{
-		eDebug("[eServiceMP3::%s] m_state != stIdle", __func__);
+		eDebug("[eServiceLibpl::%s] state is not idle", __func__);
 		return -1;
 	}
 
-	if (player && player->output && player->playback)
+	if (player && player->Play())
 	{
 		m_state = stRunning;
 
-		player->output->Command(player, OUTPUT_OPEN, NULL);
-		player->playback->Command(player, PLAYBACK_PLAY, NULL);
+		int autoaudio = 0;
+		int autoaudio_level = 5;
+		std::string configvalue;
+		std::vector<std::string> autoaudio_languages;
+		configvalue = eConfigManager::getConfigValue("config.autolanguage.audio_autoselect1");
+		if (configvalue != "" && configvalue != "None")
+			autoaudio_languages.push_back(configvalue);
+		configvalue = eConfigManager::getConfigValue("config.autolanguage.audio_autoselect2");
+		if (configvalue != "" && configvalue != "None")
+			autoaudio_languages.push_back(configvalue);
+		configvalue = eConfigManager::getConfigValue("config.autolanguage.audio_autoselect3");
+		if (configvalue != "" && configvalue != "None")
+			autoaudio_languages.push_back(configvalue);
+		configvalue = eConfigManager::getConfigValue("config.autolanguage.audio_autoselect4");
+		if (configvalue != "" && configvalue != "None")
+			autoaudio_languages.push_back(configvalue);
+		for (unsigned int i = 0; i < m_audioStreams.size(); i++)
+		{
+			if (!m_audioStreams[i].language_code.empty())
+			{
+				int x = 1;
+				for (std::vector<std::string>::iterator it = autoaudio_languages.begin(); x < autoaudio_level && it != autoaudio_languages.end(); x++, it++)
+				{
+					if ((*it).find(m_audioStreams[i].language_code) != std::string::npos)
+					{
+						autoaudio = i;
+						autoaudio_level = x;
+						break;
+					}
+				}
+			}
+		}
+
+		if (autoaudio)
+			selectAudioStream(autoaudio);
+
 		m_event(this, evStart);
 		m_event(this, evGstreamerPlayStarted);
 		updateEpgCacheNowNext();
-		eDebug("[eServiceMP3::%s] start %s", __func__, m_ref.path.c_str());
+		eDebug("[eServiceLibpl::%s] start %s", __func__, m_ref.path.c_str());
 
 		return 0;
 	}
 
-	eDebug("[eServiceMP3::%s] ERROR in start %s", __func__, m_ref.path.c_str());
+	eDebug("[eServiceLibpl::%s] ERROR in start %s", __func__, m_ref.path.c_str());
 	return -1;
 }
 
-RESULT eServiceMP3::stop()
+RESULT eServiceLibpl::stop()
 {
 	if (m_state == stIdle)
 	{
-		eDebug("[eServiceMP3::%s] m_state == stIdle", __func__);
+		eDebug("[eServiceLibpl::%s] state is idle", __func__);
 		return -1;
 	}
 
 	if (m_state == stStopped)
+	{
+		eDebug("[eServiceLibpl::%s] state is stoped", __func__);
 		return -1;
-
-	eDebug("[eServiceMP3::%s] stop %s", __func__, m_ref.path.c_str());
-
-	if (player && player->playback && player->output)
-	{
-		player->playback->Command(player, PLAYBACK_STOP, NULL);
-		player->output->Command(player, OUTPUT_CLOSE, NULL);
 	}
 
-	if (player && player->output)
-	{
-		player->output->Command(player,OUTPUT_DEL, (void*)"audio");
-		player->output->Command(player,OUTPUT_DEL, (void*)"video");
-		player->output->Command(player,OUTPUT_DEL, (void*)"subtitle");
-	}
+	eDebug("[eServiceLibpl::%s] stop %s", __func__, m_ref.path.c_str());
 
-	if (player && player->playback)
-		player->playback->Command(player,PLAYBACK_CLOSE, NULL);
-
-	if (player)
-		free(player);
-
-	if (player != NULL)
-		player = NULL;
+	player->RequestAbort();
+	player->Stop();
+	player->Close();
 
 	m_state = stStopped;
 	saveCuesheet();
@@ -622,12 +956,12 @@ RESULT eServiceMP3::stop()
 	return 0;
 }
 
-RESULT eServiceMP3::setTarget(int target)
+RESULT eServiceLibpl::setTarget(int target)
 {
 	return -1;
 }
 
-RESULT eServiceMP3::pause(ePtr<iPauseableService> &ptr)
+RESULT eServiceLibpl::pause(ePtr<iPauseableService> &ptr)
 {
 	ptr=this;
 	m_event((iPlayableService*)this, evUpdatedInfo);
@@ -667,128 +1001,139 @@ int getSpeed(int ratio)
 	return -1;
 }
 
-RESULT eServiceMP3::setSlowMotion(int ratio)
+RESULT eServiceLibpl::setSlowMotion(int ratio)
 {
 	// konfetti: in libeplayer3 we changed this because I dont like application specific stuff in a library
 	int speed = getSpeed(ratio);
 
-	if (player && player->playback && (speed != -1))
+	if (m_state == stRunning && speed != -1 && ratio > 1)
 	{
-		int result = 0;
-
-		if (ratio > 1)
-			result = player->playback->Command(player, PLAYBACK_SLOWMOTION, (void*)&speed);
-
-		if (result != 0)
+		if (player->SlowMotion(speed))
+		{
+			eDebug("[eServiceLibpl::%s] ERROR!", __func__);
 			return -1;
+		}
 	}
 
 	return 0;
 }
 
-RESULT eServiceMP3::setFastForward(int ratio)
+RESULT eServiceLibpl::setFastForward(int ratio)
 {
-	// konfetti: in libeplayer3 we changed this because I dont like application specific stuff in a library
 	int speed = getSpeed(ratio);
 
-	if (player && player->playback && (speed != -1))
+	int res = 0;
+
+	if (m_state == stRunning && speed != -1)
 	{
-		int result = 0;
-
 		if (ratio > 1)
-			result = player->playback->Command(player, PLAYBACK_FASTFORWARD, (void*)&speed);
+			res = player->FastForward(speed);
 		else if (ratio < -1)
-		{
-			//speed = speed * -1;
-			result = player->playback->Command(player, PLAYBACK_FASTBACKWARD, (void*)&speed);
-		}
-		else
-			result = player->playback->Command(player, PLAYBACK_CONTINUE, NULL);
+			res = player->FastBackward(speed);
+		else /* speed == 1 */
+			res = player->Continue();
 
-		if (result != 0)
-			return -1;
+		if (res)
+			eDebug("[eServiceLibpl::%s] ERROR!", __func__);
 	}
 
 	return 0;
 }
 
 		// iPausableService
-RESULT eServiceMP3::pause()
+RESULT eServiceLibpl::pause()
 {
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_PAUSE, NULL);
+	if (m_state != stRunning)
+		return 0;
 
-	return 0;
+	return player->Pause();
+	m_paused = true;
 }
 
-RESULT eServiceMP3::unpause()
+RESULT eServiceLibpl::unpause()
 {
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_CONTINUE, NULL);
+	if (m_state != stRunning)
+		return 0;
 
-	return 0;
+	return player->Continue();
+	m_paused = false;
 }
 
 	/* iSeekableService */
-RESULT eServiceMP3::seek(ePtr<iSeekableService> &ptr)
+RESULT eServiceLibpl::seek(ePtr<iSeekableService> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-RESULT eServiceMP3::getLength(pts_t &pts)
+RESULT eServiceLibpl::getLength(pts_t &pts)
 {
-	double length = 0;
+	if (m_state != stRunning)
+		return 0;
 
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_LENGTH, &length);
+	int64_t length = 0;
+	player->GetDuration(length);
 
-	if (length <= 0)
+	if (length > 0)
+	{
+		pts = length * 90000 / AV_TIME_BASE;
+	}
+	else
+	{
+		length = 0;
+		player->GetPts(length);
+		if (length > 0)
+			pts = length + AV_TIME_BASE / 90000;
+		else
+			return -1;
+	}
+	return 0;
+}
+
+RESULT eServiceLibpl::seekTo(pts_t to)
+{
+	if (m_state != stRunning)
+		return 0;
+
+	player->Seek((int64_t)to * AV_TIME_BASE / 90000, true);
+
+	if(m_currentSubtitleStream >= 0 && m_emb_subtitle_pages.size())
+		m_emb_subtitle_pages.clear();
+
+	return 0;
+}
+
+RESULT eServiceLibpl::seekRelative(int direction, pts_t to)
+{
+	if (m_state != stRunning)
+		return 0;
+
+	player->Seek((int64_t)to * direction * AV_TIME_BASE / 90000, false);
+
+	if(m_currentSubtitleStream >= 0 && m_emb_subtitle_pages.size())
+		m_emb_subtitle_pages.clear();
+
+	return 0;
+}
+
+RESULT eServiceLibpl::getPlayPosition(pts_t &pts)
+{
+	pts = 0;
+
+	if(m_state != stRunning)
 		return -1;
 
-	pts = length * 90000;
-	return 0;
-}
-
-RESULT eServiceMP3::seekTo(pts_t to)
-{
-	float pos = (to/90000.0)-10;
-
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_SEEK, (void*)&pos);
-
-	return 0;
-}
-
-RESULT eServiceMP3::seekRelative(int direction, pts_t to)
-{
-	float pos = direction*(to/90000.0);
-
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_SEEK, (void*)&pos);
-
-	return 0;
-}
-
-RESULT eServiceMP3::getPlayPosition(pts_t &pts)
-{
-	if (player && player->playback && !player->playback->isPlaying)
+	if (!player->isPlaying)
 	{
-		eDebug("[eServiceMP3::%s] !!!!EOF!!!!", __func__);
-
-		if(m_state == stRunning)
-			m_event((iPlayableService*)this, evEOF);
-
-		pts = 0;
+		eDebug("[eServiceLibpl::%s] !!!!EOF!!!!", __func__);
+		m_event((iPlayableService*)this, evEOF);
 		return -1;
 	}
 
-	unsigned long long int vpts = 0;
+	int64_t vpts = 0;
+	player->GetPts(vpts);
 
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_PTS, &vpts);
-
-	if (vpts<=0)
+	if (vpts <= 0)
 		return -1;
 
 	/* len is in nanoseconds. we have 90 000 pts per second. */
@@ -796,25 +1141,25 @@ RESULT eServiceMP3::getPlayPosition(pts_t &pts)
 	return 0;
 }
 
-RESULT eServiceMP3::setTrickmode(int trick)
+RESULT eServiceLibpl::setTrickmode(int trick)
 {
 	/* trickmode is not yet supported by our dvbmediasinks. */
 	return -1;
 }
 
-RESULT eServiceMP3::isCurrentlySeekable()
+RESULT eServiceLibpl::isCurrentlySeekable()
 {
 	// Hellmaster1024: 1 for skipping 3 for skipping anf fast forward
 	return 3;
 }
 
-RESULT eServiceMP3::info(ePtr<iServiceInformation>&i)
+RESULT eServiceLibpl::info(ePtr<iServiceInformation>&i)
 {
 	i = this;
 	return 0;
 }
 
-RESULT eServiceMP3::getName(std::string &name)
+RESULT eServiceLibpl::getName(std::string &name)
 {
 	std::string title = m_ref.getName();
 
@@ -831,7 +1176,7 @@ RESULT eServiceMP3::getName(std::string &name)
 	return 0;
 }
 
-RESULT eServiceMP3::getEvent(ePtr<eServiceEvent> &evt, int nownext)
+RESULT eServiceLibpl::getEvent(ePtr<eServiceEvent> &evt, int nownext)
 {
 	evt = nownext ? m_event_next : m_event_now;
 	if (!evt)
@@ -840,333 +1185,383 @@ RESULT eServiceMP3::getEvent(ePtr<eServiceEvent> &evt, int nownext)
 	return 0;
 }
 
-int eServiceMP3::getInfo(int w)
+std::string eServiceLibpl::getTag(std::string tag)
 {
-	switch (w)
-	{
-	case sServiceref: return m_ref;
-	case sVideoHeight: return m_height;
-	case sVideoWidth: return m_width;
-	case sFrameRate: return m_framerate;
-	case sProgressive: return m_progressive;
-	case sAspect: return m_aspect;
-	case sTagTitle:
-	case sTagArtist:
-	case sTagAlbum:
-	case sTagTitleSortname:
-	case sTagArtistSortname:
-	case sTagAlbumSortname:
-	case sTagDate:
-	case sTagComposer:
-	case sTagGenre:
-	case sTagComment:
-	case sTagExtendedComment:
-	case sTagLocation:
-	case sTagHomepage:
-	case sTagDescription:
-	case sTagVersion:
-	case sTagISRC:
-	case sTagOrganization:
-	case sTagCopyright:
-	case sTagCopyrightURI:
-	case sTagContact:
-	case sTagLicense:
-	case sTagLicenseURI:
-	case sTagCodec:
-	case sTagAudioCodec:
-	case sTagVideoCodec:
-	case sTagEncoder:
-	case sTagLanguageCode:
-	case sTagKeywords:
-	case sTagChannelMode:
-	case sUser+12:
-		return resIsString;
-	case sTagTrackGain:
-	case sTagTrackPeak:
-	case sTagAlbumGain:
-	case sTagAlbumPeak:
-	case sTagReferenceLevel:
-	case sTagBeatsPerMinute:
-	case sTagImage:
-	case sTagPreviewImage:
-	case sTagAttachment:
-		return resIsPyObject;
-	case sBuffer: return m_bufferInfo.bufferPercent;
-	default:
-		return resNA;
-	}
-
-	return 0;
-}
-
-std::string eServiceMP3::getInfoString(int w)
-{
-	if ( m_sourceinfo.is_streaming )
-	{
-		switch (w)
-		{
-		case sProvider:
-			return "IPTV";
-		case sServiceref:
-		{
-			eServiceReference ref(m_ref);
-			ref.type = eServiceFactoryMP3::id;
-			ref.path.clear();
-			return ref.toString();
-		}
-		default:
-			break;
-		}
-	}
-
-	char * tag = NULL;
-	switch (w)
-	{
-	case sTagTitle:
-		tag = strdup("Title");
-		break;
-	case sTagArtist:
-		tag = strdup("Artist");
-		break;
-	case sTagAlbum:
-		tag = strdup("Album");
-		break;
-	case sTagComment:
-		tag = strdup("Comment");
-		break;
-	case sTagTrackNumber:
-		tag = strdup("Track");
-		break;
-	case sTagGenre:
-		tag = strdup("Genre");
-		break;
-	case sTagDate:
-		tag = strdup("Year");
-		break;
-	case sTagVideoCodec:
-		tag = strdup("VideoType");
-		break;
-	case sTagAudioCodec:
-		tag = strdup("AudioType");
-		break;
-	default:
+	if (m_metaData.empty() && (m_state != stRunning || !player->GetMetadata(m_metaData)))
 		return "";
-	}
 
-	if (player && player->playback)
+	if (!m_metaData.empty())
 	{
-		if (player->playback->Command(player, PLAYBACK_INFO, &tag) == 0)
-		{
-			std::string res (tag);
-			free(tag);
-			return res;
-		}
+		for (std::map<std::string, std::string>::iterator it = m_metaData.begin(); it != m_metaData.end(); ++it)
+			if (it->first == tag)
+				return it->second;
 	}
 
 	return "";
 }
 
-RESULT eServiceMP3::audioChannel(ePtr<iAudioChannelSelection> &ptr)
+int eServiceLibpl::getInfo(int w)
+{
+	switch (w)
+	{
+		case sServiceref: return m_ref;
+		case sVideoHeight: return m_height;
+		case sVideoWidth: return m_width;
+		case sFrameRate: return m_framerate;
+		case sProgressive: return m_progressive;
+		case sAspect: return m_aspect;
+		case sTagTitle:
+		case sTagArtist:
+		case sTagAlbum:
+		case sTagTitleSortname:
+		case sTagArtistSortname:
+		case sTagAlbumSortname:
+		case sTagDate:
+		case sTagComposer:
+		case sTagGenre:
+		case sTagComment:
+		case sTagExtendedComment:
+		case sTagLocation:
+		case sTagHomepage:
+		case sTagDescription:
+		case sTagVersion:
+		case sTagISRC:
+		case sTagOrganization:
+		case sTagCopyright:
+		case sTagCopyrightURI:
+		case sTagContact:
+		case sTagLicense:
+		case sTagLicenseURI:
+		case sTagCodec:
+		case sTagAudioCodec:
+		case sTagVideoCodec:
+		case sTagEncoder:
+		case sTagLanguageCode:
+		case sTagKeywords:
+		case sTagChannelMode:
+		case sUser+12:
+			return resIsString;
+		case sTagTrackGain:
+		case sTagTrackPeak:
+		case sTagAlbumGain:
+		case sTagAlbumPeak:
+		case sTagReferenceLevel:
+		case sTagBeatsPerMinute:
+		case sTagImage:
+		case sTagPreviewImage:
+		case sTagAttachment:
+			return resIsPyObject;
+		case sBuffer: return m_bufferInfo.bufferPercent;
+		default:
+			return resNA;
+	}
+
+	return 0;
+}
+
+std::string eServiceLibpl::getInfoString(int w)
+{
+	if (is_streaming)
+	{
+		switch (w)
+		{
+			case sProvider:
+				return "IPTV";
+			case sServiceref:
+			{
+				eServiceReference ref(m_ref);
+				ref.type = eServiceFactoryLibpl::id;
+				ref.path.clear();
+				return ref.toString();
+			}
+			default:
+				break;
+		}
+	}
+
+	switch (w)
+	{
+		case sTagTitle:
+		case sTagTitleSortname:
+			return getTag("title");
+		case sTagArtist:
+		case sTagArtistSortname:
+			return getTag("artist");
+		case sTagAlbum:
+			return getTag("album");
+		case sTagComment:
+		case sTagExtendedComment:
+			return getTag("comment");
+		case sTagGenre:
+			return getTag("genre");
+		case sTagDate:
+			return getTag("date");
+		case sTagComposer:
+			return getTag("composer");
+		case sTagCopyright:
+			return getTag("copyright");
+		case sTagEncoder:
+			return getTag("encoder");
+		case sTagLanguageCode:
+			return getTag("language");
+		default:
+			break;
+	}
+
+	return "";
+}
+
+RESULT eServiceLibpl::audioChannel(ePtr<iAudioChannelSelection> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-RESULT eServiceMP3::audioTracks(ePtr<iAudioTrackSelection> &ptr)
+RESULT eServiceLibpl::audioTracks(ePtr<iAudioTrackSelection> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-RESULT eServiceMP3::cueSheet(ePtr<iCueSheet> &ptr)
+RESULT eServiceLibpl::cueSheet(ePtr<iCueSheet> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-RESULT eServiceMP3::subtitle(ePtr<iSubtitleOutput> &ptr)
+RESULT eServiceLibpl::subtitle(ePtr<iSubtitleOutput> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-RESULT eServiceMP3::audioDelay(ePtr<iAudioDelay> &ptr)
+RESULT eServiceLibpl::audioDelay(ePtr<iAudioDelay> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-int eServiceMP3::getNumberOfTracks()
+int eServiceLibpl::getNumberOfTracks()
 {
  	return m_audioStreams.size();
 }
 
-int eServiceMP3::getCurrentTrack()
+int eServiceLibpl::getCurrentTrack()
 {
 	return m_currentAudioStream;
 }
 
-RESULT eServiceMP3::selectTrack(unsigned int i)
+RESULT eServiceLibpl::selectTrack(unsigned int i)
 {
 	int ret = selectAudioStream(i);
 	return ret;
 }
 
-int eServiceMP3::selectAudioStream(int i)
+int eServiceLibpl::selectAudioStream(int i)
 {
-	if (i != m_currentAudioStream)
+	if (m_state == stRunning && i != m_currentAudioStream)
 	{
-		if (player && player->playback)
-			player->playback->Command(player, PLAYBACK_SWITCH_AUDIO, (void*)&i);
-		m_currentAudioStream=i;
+		player->SwitchAudio(m_audioStreams[i].pid);
+		seekRelative(-1, 5000);
+		m_currentAudioStream = i;
 		return 0;
 	}
 
 	return -1;
 }
 
-int eServiceMP3::getCurrentChannel()
+int eServiceLibpl::getCurrentChannel()
 {
 	return STEREO;
 }
 
-RESULT eServiceMP3::selectChannel(int i)
+RESULT eServiceLibpl::selectChannel(int i)
 {
-	eDebug("[eServiceMP3::%s] %i", __func__,i);
+	eDebug("[eServiceLibpl::%s] %i", __func__,i);
 	return 0;
 }
 
-RESULT eServiceMP3::getTrackInfo(struct iAudioTrackInfo &info, unsigned int i)
+RESULT eServiceLibpl::getTrackInfo(struct iAudioTrackInfo &info, unsigned int i)
 {
  	if (i >= m_audioStreams.size())
 		return -2;
-	if (m_audioStreams[i].type == atMPEG)
-		info.m_description = "MPEG";
-	else if (m_audioStreams[i].type == atMP3)
-		info.m_description = "MP3";
-	else if (m_audioStreams[i].type == atAC3)
-		info.m_description = "AC3";
-	else if (m_audioStreams[i].type == atAAC)
-		info.m_description = "AAC";
-	else if (m_audioStreams[i].type == atDTS)
-		info.m_description = "DTS";
-	else if (m_audioStreams[i].type == atPCM)
-		info.m_description = "PCM";
-	else if (m_audioStreams[i].type == atOGG)
-		info.m_description = "OGG";
+
+	switch(m_audioStreams[i].type)
+	{
+		case 1:
+			info.m_description = "MPEG";
+			break;
+		case 2:
+			info.m_description = "MP3";
+			break;
+		case 3:
+			info.m_description = "AC3";
+			break;
+		case 4:
+			info.m_description = "DTS";
+			break;
+		case 5:
+			info.m_description = "AAC";
+			break;
+		case 0:
+		case 6:
+			info.m_description = "PCM";
+			break;
+		case 8:
+			info.m_description = "FLAC";
+			break;
+		case 9:
+			info.m_description = "WMA";
+			break;
+		default:
+			break;
+	}
+
 	if (info.m_language.empty())
 		info.m_language = m_audioStreams[i].language_code;
 
 	return 0;
 }
 
-eAutoInitPtr<eServiceFactoryMP3> init_eServiceFactoryMP3(eAutoInitNumbers::service+1, "eServiceFactoryMP3");
+eAutoInitPtr<eServiceFactoryLibpl> init_eServiceFactoryLibpl(eAutoInitNumbers::service+1, "eServiceFactoryLibpl");
 
-RESULT eServiceMP3::enableSubtitles(iSubtitleUser *user, struct SubtitleTrack &track)
+RESULT eServiceLibpl::enableSubtitles(iSubtitleUser *user, struct SubtitleTrack &track)
 {
-	if (m_currentSubtitleStream != track.pid)
+	if (m_state == stRunning && m_currentSubtitleStream != track.pid)
 	{
-		m_subtitle_pages.clear();
 		m_currentSubtitleStream = track.pid;
 		m_cachedSubtitleStream = m_currentSubtitleStream;
 		m_subtitle_widget = user;
 		
-		eDebug ("eServiceMP3::switched to subtitle stream %i", m_currentSubtitleStream);
+		eDebug ("[eServiceLibpl::%s] switched to subtitle stream %i, type %d", __func__, m_currentSubtitleStream, track.page_number);
 
-		if (player && player->playback)
-			player->playback->Command(player, PLAYBACK_SWITCH_SUBTITLE, (void*)&track.pid);
-
-		// we have to force a seek, before the new subtitle stream will start
-		seekRelative(-1, 90000);
+		if (track.page_number > 1)
+		{
+			pullTextSubtitles(track.page_number);
+		}
+		else
+		{
+			m_emb_subtitle_pages.clear();
+			m_subtitle_pages = &m_emb_subtitle_pages;
+			player->SwitchSubtitle(track.magazine_number);
+			seekRelative(-1, 5000);
+		}
 	}
 
 	return 0;
 }
 
-RESULT eServiceMP3::disableSubtitles()
+RESULT eServiceLibpl::disableSubtitles()
 {
-	eDebug("[eServiceMP3::%s]", __func__);
+	eDebug("[eServiceLibpl::%s]", __func__);
+
+	if(m_state != stRunning)
+		return 0;
+
+	player->SwitchSubtitle(-1);
 	m_currentSubtitleStream = -1;
 	m_cachedSubtitleStream = m_currentSubtitleStream;
-	m_subtitle_pages.clear();
+	m_subtitle_pages = NULL;
+	m_emb_subtitle_pages.clear();
 
-	if (m_subtitle_widget) m_subtitle_widget->destroy();
+	if (m_subtitle_widget)
+		m_subtitle_widget->destroy();
 
 	m_subtitle_widget = 0;
-
-	int pid = -1;
-
-	if (player && player->playback)
-		player->playback->Command(player, PLAYBACK_SWITCH_SUBTITLE, (void*)&pid);
-
 	return 0;
 }
 
-RESULT eServiceMP3::getCachedSubtitle(struct SubtitleTrack &track)
+RESULT eServiceLibpl::getCachedSubtitle(struct SubtitleTrack &track)
 {
-
 	bool autoturnon = eConfigManager::getConfigBoolValue("config.subtitles.pango_autoturnon", true);
-
+	int m_subtitleStreams_size = (int)m_subtitleStreams.size();
 	if (!autoturnon)
 		return -1;
 
-	if (m_cachedSubtitleStream >= 0 && m_cachedSubtitleStream < (int)m_subtitleStreams.size())
+	if (m_cachedSubtitleStream == -2 && m_subtitleStreams_size)
+	{
+		m_cachedSubtitleStream = m_subtitleStreams_size - 1;
+		if (m_subtitleStreams[m_cachedSubtitleStream].type < 2)
+		{
+			int autosub_level = 5;
+			std::string configvalue;
+			std::vector<std::string> autosub_languages;
+			configvalue = eConfigManager::getConfigValue("config.autolanguage.subtitle_autoselect1");
+			if (configvalue != "" && configvalue != "None")
+				autosub_languages.push_back(configvalue);
+			configvalue = eConfigManager::getConfigValue("config.autolanguage.subtitle_autoselect2");
+			if (configvalue != "" && configvalue != "None")
+				autosub_languages.push_back(configvalue);
+			configvalue = eConfigManager::getConfigValue("config.autolanguage.subtitle_autoselect3");
+			if (configvalue != "" && configvalue != "None")
+				autosub_languages.push_back(configvalue);
+			configvalue = eConfigManager::getConfigValue("config.autolanguage.subtitle_autoselect4");
+			if (configvalue != "" && configvalue != "None")
+				autosub_languages.push_back(configvalue);
+			for (int i = 0; i < m_subtitleStreams_size; i++)
+			{
+				if (!m_subtitleStreams[i].language_code.empty())
+				{
+					int x = 1;
+					for (std::vector<std::string>::iterator it2 = autosub_languages.begin(); x < autosub_level && it2 != autosub_languages.end(); x++, it2++)
+					{
+						if ((*it2).find(m_subtitleStreams[i].language_code) != std::string::npos)
+						{
+							autosub_level = x;
+							m_cachedSubtitleStream = i;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (m_cachedSubtitleStream >= 0 && m_cachedSubtitleStream < m_subtitleStreams_size)
 	{
 		track.type = 2;
 		track.pid = m_cachedSubtitleStream;
-		track.page_number = int(m_subtitleStreams[m_cachedSubtitleStream].type);
-		track.magazine_number = 0;
+		track.page_number = m_subtitleStreams[m_cachedSubtitleStream].type;
+		track.magazine_number = m_subtitleStreams[m_cachedSubtitleStream].id;
 		return 0;
 	}
-
 	return -1;
 }
 
-RESULT eServiceMP3::getSubtitleList(std::vector<struct SubtitleTrack> &subtitlelist)
+RESULT eServiceLibpl::getSubtitleList(std::vector<struct SubtitleTrack> &subtitlelist)
 {
-	// 	eDebug("[eServiceMP3::%s]", __func__);
 	int stream_idx = 0;
 
 	for (std::vector<subtitleStream>::iterator IterSubtitleStream(m_subtitleStreams.begin()); IterSubtitleStream != m_subtitleStreams.end(); ++IterSubtitleStream)
 	{
-		subtype_t type = IterSubtitleStream->type;
-		switch(type)
-		{
-		case stUnknown:
-		case stVOB:
-		case stPGS:
-			break;
-		default:
-		{
-			struct SubtitleTrack track;
-			track.type = 2;
-			track.pid = stream_idx;
-			track.page_number = int(type);
-			track.magazine_number = 0;
-			track.language_code = IterSubtitleStream->language_code;
-			subtitlelist.push_back(track);
-		}
-		}
+		struct SubtitleTrack track;
+		track.type = 2;
+		track.pid = stream_idx;
+		track.page_number = IterSubtitleStream->type;
+		track.magazine_number = IterSubtitleStream->id;
+		track.language_code = IterSubtitleStream->language_code;
+		subtitlelist.push_back(track);
+
 		stream_idx++;
 	}
 
-	eDebug("[eServiceMP3::%s] finished", __func__);
+	eDebug("[eServiceLibpl::%s] finished", __func__);
 	return 0;
 }
 
-RESULT eServiceMP3::streamed(ePtr<iStreamedService> &ptr)
+RESULT eServiceLibpl::streamed(ePtr<iStreamedService> &ptr)
 {
 	ptr = this;
 	return 0;
 }
 
-ePtr<iStreamBufferInfo> eServiceMP3::getBufferCharge()
+ePtr<iStreamBufferInfo> eServiceLibpl::getBufferCharge()
 {
-	return new eStreamBufferInfo(m_bufferInfo.bufferPercent, m_bufferInfo.avgInRate, m_bufferInfo.avgOutRate, m_bufferInfo.bufferingLeft, m_buffer_size);
+	return new eStreamLibplBufferInfo(m_bufferInfo.bufferPercent, m_bufferInfo.avgInRate, m_bufferInfo.avgOutRate, m_bufferInfo.bufferingLeft, m_buffer_size);
 }
 
 /* cuesheet CVR */
-PyObject *eServiceMP3::getCutList()
+PyObject *eServiceLibpl::getCutList()
 {
 	ePyObject list = PyList_New(0);
 
@@ -1183,7 +1578,7 @@ PyObject *eServiceMP3::getCutList()
 }
 
 /* cuesheet CVR */
-void eServiceMP3::setCutList(ePyObject list)
+void eServiceLibpl::setCutList(ePyObject list)
 {
 	if (!PyList_Check(list))
 		return;
@@ -1197,75 +1592,139 @@ void eServiceMP3::setCutList(ePyObject list)
 		ePyObject tuple = PyList_GET_ITEM(list, i);
 		if (!PyTuple_Check(tuple))
 		{
-			eDebug("[eServiceMP3::%s] non-tuple in cutlist", __func__);
+			eDebug("[eServiceLibpl::%s] non-tuple in cutlist", __func__);
 			continue;
 		}
 		if (PyTuple_Size(tuple) != 2)
 		{
-			eDebug("[eServiceMP3::%s] cutlist entries need to be a 2-tuple", __func__);
+			eDebug("[eServiceLibpl::%s] cutlist entries need to be a 2-tuple", __func__);
 			continue;
 		}
 		ePyObject ppts = PyTuple_GET_ITEM(tuple, 0), ptype = PyTuple_GET_ITEM(tuple, 1);
 		if (!(PyLong_Check(ppts) && PyInt_Check(ptype)))
 		{
-			eDebug("[eServiceMP3::%s] cutlist entries need to be (pts, type)-tuples (%d %d)", __func__, PyLong_Check(ppts), PyInt_Check(ptype));
+			eDebug("[eServiceLibpl::%s] cutlist entries need to be (pts, type)-tuples (%d %d)", __func__, PyLong_Check(ppts), PyInt_Check(ptype));
 			continue;
 		}
 		pts_t pts = PyLong_AsLongLong(ppts);
 		int type = PyInt_AsLong(ptype);
 		m_cue_entries.insert(cueEntry(pts, type));
-		eDebug("[eServiceMP3::%s] adding %08llx, %d", __func__, pts, type);
+		eDebug("[eServiceLibpl::%s] adding %08llx, %d", __func__, pts, type);
 	}
 	m_cuesheet_changed = 1;
 	m_event((iPlayableService*)this, evCuesheetChanged);
 }
 
-void eServiceMP3::setCutListEnable(int enable)
+void eServiceLibpl::setCutListEnable(int enable)
 {
 	m_cutlist_enabled = enable;
 }
 
-int eServiceMP3::setBufferSize(int size)
+int eServiceLibpl::setBufferSize(int size)
 {
 	m_buffer_size = size;
 	return 0;
 }
 
-int eServiceMP3::getAC3Delay()
+int eServiceLibpl::getAC3Delay()
 {
 	return 0;
 }
 
-int eServiceMP3::getPCMDelay()
+int eServiceLibpl::getPCMDelay()
 {
 	return 0;
 }
 
-void eServiceMP3::setAC3Delay(int delay)
+void eServiceLibpl::setAC3Delay(int delay)
 {
 }
 
-void eServiceMP3::setPCMDelay(int delay)
+void eServiceLibpl::setPCMDelay(int delay)
 {
 }
 
-void eServiceMP3::gotThreadMessage(const int &msg)
+bool eServiceLibpl::getVideoInfo()
 {
-	switch(msg)
+	if (m_state != stRunning)
+		return false;
+
+	DVBApiVideoInfo videoInfo;
+	player->GetVideoInfo(videoInfo);
+
+	m_width = videoInfo.width;
+	m_height = videoInfo.height;
+	m_aspect = videoInfo.aspect;
+	m_framerate = videoInfo.frame_rate;
+	m_progressive = videoInfo.progressive;
+
+	return true;
+}
+
+void eServiceLibpl::videoSizeChanged()
+{
+	if (getVideoInfo())
 	{
-	case 1: // thread stopped
-		eDebug("[eServiceMP3::%s] issuing eof...", __func__);
-		m_event(this, evEOF);
-		break;
+		eDebug("[eServiceLibpl::%s] width:%d height:%d aspect:%d", __func__, m_width, m_height, m_aspect);
+		m_event((iPlayableService*)this, evVideoSizeChanged);
+	}
+}
+
+void eServiceLibpl::videoFramerateChanged()
+{
+	if (getVideoInfo())
+	{
+		eDebug("[eServiceLibpl::%s] framerate:%d", __func__, m_framerate);
+		m_event((iPlayableService*)this, evVideoFramerateChanged);
+	}
+}
+
+void eServiceLibpl::videoProgressiveChanged()
+{
+	if (getVideoInfo())
+	{
+		eDebug("[eServiceLibpl::%s] progressive:%d", __func__, m_framerate);
+		m_event((iPlayableService*)this, evVideoProgressiveChanged);
+	}
+}
+
+void eServiceLibpl::getChapters()
+{
+	eDebug("[eServiceLibpl::%s]", __func__);
+
+	if (m_state != stRunning)
+		return;
+
+	std::vector<int> positions;
+	player->GetChapters(positions);
+
+	if (!positions.empty())
+	{
+		m_use_chapter_entries = true;
+		if (m_cuesheet_loaded)
+			m_cue_entries.clear();
+
+		for (unsigned int i = 0; i < positions.size(); i++)
+		{
+			/* first chapter is movie start no cut needed */
+			if (i > 0)
+			{
+				if (positions[i] > 0)
+					m_cue_entries.insert(cueEntry(positions[i], 2));
+			}
+		}
+
+		m_cuesheet_changed = 1;
+		m_event((iPlayableService*)this, evCuesheetChanged);
 	}
 }
 
 /* cuesheet CVR */
-void eServiceMP3::loadCuesheet()
+void eServiceLibpl::loadCuesheet()
 {
 	if (!m_cuesheet_loaded)
 	{
-		eDebug("[eServiceMP3::%s] loading cuesheet", __func__);
+		eDebug("[eServiceLibpl::%s] loading cuesheet", __func__);
 		m_cuesheet_loaded = true;
 	}
 
@@ -1296,21 +1755,21 @@ void eServiceMP3::loadCuesheet()
 			m_cue_entries.insert(cueEntry(where, what));
 		}
 		fclose(f);
-		eDebug("[eServiceMP3::%s] cuts file has %zd entries", __func__, m_cue_entries.size());
+		eDebug("[eServiceLibpl::%s] cuts file has %zd entries", __func__, m_cue_entries.size());
 	} else
-		eDebug("[eServiceMP3::%s] cutfile not found!", __func__);
+		eDebug("[eServiceLibpl::%s] cutfile not found!", __func__);
 
 	m_cuesheet_changed = 0;
 	m_event((iPlayableService*)this, evCuesheetChanged);
 }
 
 /* cuesheet CVR */
-void eServiceMP3::saveCuesheet()
+void eServiceLibpl::saveCuesheet()
 {
 	std::string filename = m_ref.path;
 
-	/* save cuesheet only when main file is accessible. */
-	if (::access(filename.c_str(), R_OK) < 0)
+	/* save cuesheet only when main file is accessible and no libeplayer chapters avbl*/
+	if ((::access(filename.c_str(), R_OK) < 0) || m_use_chapter_entries)
 		return;
 
 	filename.append(".cuts");
@@ -1343,10 +1802,36 @@ void eServiceMP3::saveCuesheet()
 	m_cuesheet_changed = 0;
 }
 
-void libeplayerThreadStop() // call from libeplayer
+void eServiceLibpl::gotThreadMessage(const int &msg)
 {
-	eDebug("[eServiceMP3::%s]", __func__);
-	eServiceMP3 *serv = eServiceMP3::getInstance();
-	serv->inst_m_pump->send(1);
+	switch(msg)
+	{
+	case 0:
+		pullSubtitle();
+		break;
+	case 1: // thread stopped
+		eDebug("[eServiceLibpl::%s] issuing eof...", __func__);
+		m_event(this, evEOF);
+		break;
+	case 2:
+		videoSizeChanged();
+		break;
+	case 3:
+		videoFramerateChanged();
+		break;
+	case 4:
+		videoProgressiveChanged();
+		break;
+	case 5:
+		getChapters();
+		break;
+	}
+}
+
+void libeplayerMessage(int message) // call from libeplayer
+{
+	// eDebug("[eServiceLibpl::%s] %d", __func__, message);
+	eServiceLibpl *serv = eServiceLibpl::getInstance();
+	serv->inst_m_pump->send(message);
 }
 
