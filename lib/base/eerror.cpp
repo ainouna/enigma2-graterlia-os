@@ -133,20 +133,6 @@ void retrieveLogBuffer(const char **p1, unsigned int *s1, const char **p2, unsig
 		*p2 = ringbuffer;
 		*s2 = ringbuffer_head;
 	}
-
-
-void CheckPrintkLevel()
-{
-	FILE *f = fopen("/proc/sys/kernel/printk", "r");
-	if (f)
-	{
-		fscanf(f, "%u", &logOutputConsole);
-		if (logOutputConsole < 1)
-		{
-			printf("Printk level is %u, disble Enigma log in console!\n", logOutputConsole);
-		}
-		fclose(f);
-	}
 }
 
 #if defined(__sh__)

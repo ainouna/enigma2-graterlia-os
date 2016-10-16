@@ -9,10 +9,7 @@
 #include <lib/gui/esubtitle.h>
 
 #include <libeplayer3/player.h>
-
 #include "m3u8.h"
-#include <libeplayer/common.h>
-#include <libeplayer/subtitle.h>
 
 #define gint int
 #define gint64 int64_t
