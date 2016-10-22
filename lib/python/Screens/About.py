@@ -194,8 +194,6 @@ class CommitInfo(Screen):
 		commitlog = ""
 		from json import loads
 		from urllib2 import urlopen
-			elif "openarp-" in feed:
-				url = 'https://api.github.com/repos/openar-p/%s/commits' % feed[8:]
 		try:
 			commitlog += 80 * '-' + '\n'
 			commitlog += url.split('/')[-2] + '\n'

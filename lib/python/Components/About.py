@@ -10,7 +10,7 @@ def getImageVersionString():
 		if os.path.isfile('/var/lib/opkg/status'):
 			st = os.stat('/var/lib/opkg/status')
 		else:
-			st = os.stat('/usr/lib/ipkg/status')
+			st = os.stat('/usr/lib/opkg/status')
 		tm = time.localtime(st.st_mtime)
 		if tm.tm_year >= 2011:
 			return time.strftime("%Y-%m-%d %H:%M:%S", tm)
@@ -27,8 +27,8 @@ def getFlashDateString():
 def getEnigmaVersionString():
 	import enigma
 	enigma_version = enigma.getEnigmaVersionString()
-	if '-(no branch)' in enigma_version:
-		enigma_version = enigma_version [:-12]
+	if 'detached' in enigma_version:
+		enigma_version = enigma_version[:12] + enigma_version.split('/')[1]
 	return enigma_version
 
 def getGStreamerVersionString():
@@ -52,6 +52,13 @@ def getImageTypeString():
 
 def getCPUInfoString():
 	try:
+                for line in open("/proc/cpuinfo").readlines():
+			line = [x.strip() for x in line.strip().split(":")]
+			if line[0] == "cpu type":
+				processor = line[1].split()[0]
+			elif line[0] == "bogomips":
+				cpu_speed = "%1.0f" % float(line[1])
+		return "%s %s MHz" % (processor, cpu_speed)
 	except:
 		return _("undefined")
 
