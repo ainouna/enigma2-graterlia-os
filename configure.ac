@@ -18,6 +18,7 @@ AC_OPENMP()
 AC_PATH_PROG(MSGFMT, msgfmt, AC_MSG_ERROR(Could not find msgfmt))
 
 AM_PATH_PYTHON
+PYTHON_NOVERSIONCHECK=no
 AX_PYTHON_DEVEL
 AX_PKG_SWIG
 AX_SWIG_ENABLE_CXX
@@ -29,7 +30,27 @@ TUXBOX_APPS_DVB
 AM_CONDITIONAL(HAVE_GIT_DIR, test -d "$srcdir/.git")
 AM_CONDITIONAL(HAVE_FAKE_GIT_DIR, test -f "$srcdir/.git/last_commit_info")
 
-PKG_CHECK_MODULES(LIBDDVD, libdreamdvd, HAVE_LIBDDVD="yes", HAVE_LIBDDVD="no")
+dnl versions of plugins-base
+AC_ARG_WITH(gstversion,
+	AS_HELP_STRING([--with-gstversion],[use gstreamer version (major.minor)]),
+	[GST_MAJORMINOR=$withval],[GST_MAJORMINOR=1.0])
+	
+AC_ARG_ENABLE(run_from_usb,
+	[  --enable-run_from_usb      enable run_from_usb stuff],
+	[AC_DEFINE(ENABLE_RUN_FROM_USB, 1, [enable run_from_usb stuff])])
+AM_CONDITIONAL(ENABLE_RUN_FROM_USB, test "$enable_run_from_usb" = "yes")
+if test "$run_from_usb" = "yes"; then
+	AC_DEFINE(ENABLE_RUN_FROM_USB, 1, [enable run_from_usb stuff])
+fi
+
+AC_ARG_ENABLE(hs7429,
+	[  --enable-hs7429            enable hs7429 stuff],
+	[AC_DEFINE(ENABLE_HS7429, 1, [enable hs7429 stuff])])
+	
+AM_CONDITIONAL(ENABLE_HS7429, test "$enable_hs7429" = "yes")
+if test "$enable_hs7429" = "yes"; then
+	AC_DEFINE(ENABLE_HS7429, 1, [enable hs7429 stuff])
+fi
 
 AC_ARG_ENABLE(spark,
 	[  --enable-spark          enable spark stuff],
@@ -48,15 +69,32 @@ AM_CONDITIONAL(ENABLE_SPARK7162,test "$enable_spark7162" = "yes")
 if test "$enable_spark7162" = "yes"; then
 	AC_DEFINE(ENABLE_SPARK7162,1,[enable spark7162 stuff])
 fi
+	
 
 AC_ARG_ENABLE(libeplayer3,
 	[  --enable-libeplayer3          enable TDT libeplayer3 as player engine supportt],
-	[AC_DEFINE(ENABLE_LIBEPLAYER3, 1, [enable TDT libeplayer3 as player engine support])])
-if test "$enable_libeplayer3" = "yes"; then
-	AC_DEFINE(ENABLE_LIBEPLAYER3, 1, [include TDT libeplayer3 as player engine support])
-fi
-AM_CONDITIONAL(ENABLE_LIBEPLAYER3, test "$enable_libeplayer3" = "yes")
+	[AC_DEFINE(ENABLE_LIBEPLAYER3,1,[enable TDT libeplayer3 as player engine support])])
 
+AM_CONDITIONAL(ENABLE_LIBEPLAYER3,test "$enable_libeplayer3" = "yes")
+if test "$enable_libeplayer3" = "yes"; then
+	AC_DEFINE(ENABLE_LIBEPLAYER3,1,[include TDT libeplayer3 as player engine support])
+fi
+
+AC_ARG_ENABLE(mediafwgstreamer,
+	[  --enable-mediafwgstreamer      enable gstreamer as player engine supportt],
+	[AC_DEFINE(ENABLE_MEDIAFWGSTREAMER,1,[enable gstreamer as player engine support])])
+
+AM_CONDITIONAL(ENABLE_MEDIAFWGSTREAMER,test "$enable_mediafwgstreamer" = "yes")
+if test "$enable_mediafwgstreamer" = "yes"; then
+	AC_DEFINE(ENABLE_MEDIAFWGSTREAMER,1,[include gstreamer as player engine support])
+fi
+
+if test "$enable_mediafwgstreamer" = "yes"; then
+	PKG_CHECK_MODULES(GSTREAMER, gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR)
+	PKG_CHECK_MODULES(BASE, [freetype2 fribidi gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR libdvbsi++ libpng libxml-2.0 sigc++-1.2 libssl libcrypto])
+else
+	PKG_CHECK_MODULES(BASE, [freetype2 fribidi glib-2.0 libdvbsi++ libpng libxml-2.0 sigc++-1.2 libssl libcrypto])
+fi
 AC_ARG_ENABLE(minimal,
 	[  --enable-minimal          enable minimal config],
 	[AC_DEFINE(ENABLE_MINIMAL, 1, [enable minimal config])])
@@ -65,33 +103,330 @@ if test "$enable_minimal" = "yes"; then
 fi
 AM_CONDITIONAL(ENABLE_MINIMAL, test "$enable_minimal" = "yes")
 
-AC_ARG_ENABLE(sigc2,
-	[  --enable-sigc2         enable sigc2 config],
-	[AC_DEFINE(ENABLE_SIGC2, 1, [enable sigc2 config])])
-
-if ! test "$enable_sigc2" = "yes"; then
-SIGC_MAJORMINOR=1.2
-else
-SIGC_MAJORMINOR=2.0
-fi
-
-if ! test "$enable_libeplayer3" = "yes"; then
-dnl versions of gstreamer and plugins-base
-AC_ARG_WITH(gstversion,
-	AS_HELP_STRING([--with-gstversion],[use gstreamer version (major.minor)]),
-	[GST_MAJORMINOR=$withval],[GST_MAJORMINOR=0.10])
-
-PKG_CHECK_MODULES(GSTREAMER, gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR)
-PKG_CHECK_MODULES(BASE, [freetype2 fribidi gstreamer-$GST_MAJORMINOR gstreamer-pbutils-$GST_MAJORMINOR libdvbsi++ libpng libxml-2.0 libssl sigc++-$SIGC_MAJORMINOR libcrypto glib-2.0])
-else
-PKG_CHECK_MODULES(BASE, [freetype2 fribidi libdvbsi++ libpng libxml-2.0 libssl sigc++-$SIGC_MAJORMINOR libcrypto glib-2.0])
-fi
 
 
-
-
+PKG_CHECK_MODULES(TUXTXT, tuxbox-tuxtxt)
+PKG_CHECK_MODULES(BASE, [freetype2 fribidi glib-2.0 libdvbsi++ libpng libxml-2.0 sigc++-1.2 libssl libcrypto])
+PKG_CHECK_MODULES(LIBDDVD, libdreamdvd, HAVE_LIBDDVD="yes", HAVE_LIBDDVD="no")
 AM_CONDITIONAL(HAVE_LIBDDVD, test "$HAVE_LIBDDVD" = "yes")
+PKG_CHECK_MODULES(AVAHI, avahi-client)
 
+AC_ARG_ENABLE(run_from_usb,
+	[  --enable-run_from_usb      enable run_from_usb stuff],
+	[AC_DEFINE(ENABLE_RUN_FROM_USB, 1, [enable run_from_usb stuff])])
+AM_CONDITIONAL(ENABLE_RUN_FROM_USB, test "$enable_run_from_usb" = "yes")
+if test "$run_from_usb" = "yes"; then
+	AC_DEFINE(ENABLE_RUN_FROM_USB, 1, [enable run_from_usb stuff])
+fi
+
+AC_ARG_ENABLE(tf7700,
+	[  --enable-tf7700            enable tf7700 stuff],
+	[AC_DEFINE(ENABLE_TF7700, 1, [enable tf7700 stuff])])
+AM_CONDITIONAL(ENABLE_TF7700, test "$enable_tf7700" = "yes")
+if test "$enable_tf7700" = "yes"; then
+	AC_DEFINE(ENABLE_TF7700, 1, [enable tf7700 stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_250hd,
+	[  --enable-cuberevo_250hd    enable cuberevo_250d stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_250HD, 1, [enable cuberevo_250hd stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_250HD, test "$enable_cuberevo_250hd" = "yes")
+if test "$enable_cuberevo_250hd" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_250HD, 1, [enable cuberevo_250hd stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_2000hd,
+	[  --enable-cuberevo_2000hd   enable cuberevo_2000hd stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_2000HD, 1, [enable cuberevo_2000hd stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_2000HD, test "$enable_cuberevo_2000hd" = "yes")
+if test "$enable_cuberevo_2000hd" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_2000HD, 1, [enable cuberevo_2000hd stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_3000hd,
+	[  --enable-cuberevo_3000hd   enable cuberevo_3000hd stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_3000HD, 1, [enable cuberevo_3000hd stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_3000HD, test "$enable_cuberevo_3000hd" = "yes")
+if test "$enable_cuberevo_3000hd" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_3000HD, 1, [enable cuberevo_3000hd stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_9500hd,
+	[  --enable-cuberevo_9500hd   enable cuberevo_9500hd stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_9500HD, 1, [enable cuberevo_9500hd stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_9500HD, test "$enable_cuberevo_9500hd" = "yes")
+if test "$enable_cuberevo_9500hd" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_9500HD, 1, [enable cuberevo_9500hd stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_mini,
+	[  --enable-cuberevo_mini     enable cuberevo_mini stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_MINI, 1, [enable cuberevo_mini stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_MINI, test "$enable_cuberevo_mini" = "yes")
+if test "$enable_cuberevo_mini" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_MINI, 1, [enable cuberevo_mini stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_mini2,
+	[  --enable-cuberevo_mini2    enable cuberevo_mini2 stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_MINI2, 1, [enable cuberevo_mini2 stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_MINI2, test "$enable_cuberevo_mini2" = "yes")
+if test "$enable_cuberevo_mini2" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_MINI2, 1, [enable cuberevo_mini2 stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo_mini_fta,
+	[  --enable-cuberevo_mini_fta enable cuberevo_mini_fta stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO_MINI_FTA, 1, [enable cuberevo_mini_fta stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO_MINI_FTA, test "$enable_cuberevo_mini_fta" = "yes")
+if test "$enable_cuberevo_mini_fta" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO_MINI_FTA, 1, [enable cuberevo_mini_fta stuff])
+fi
+
+AC_ARG_ENABLE(cuberevo,
+	[  --enable-cuberevo          enable cuberevo stuff],
+	[AC_DEFINE(ENABLE_CUBEREVO, 1, [enable cuberevo stuff])])
+AM_CONDITIONAL(ENABLE_CUBEREVO, test "$enable_cuberevo" = "yes")
+if test "$enable_cuberevo" = "yes"; then
+	AC_DEFINE(ENABLE_CUBEREVO, 1, [enable cuberevo stuff])
+fi
+
+AC_ARG_ENABLE(spark,
+	[  --enable-spark             enable spark stuff],
+	[AC_DEFINE(ENABLE_SPARK, 1, [enable spark stuff])])
+AM_CONDITIONAL(ENABLE_SPARK, test "$enable_spark" = "yes")
+if test "$enable_spark" = "yes"; then
+	AC_DEFINE(ENABLE_SPARK, 1, [enable spark stuff])
+fi
+
+AC_ARG_ENABLE(spark7162,
+	[  --enable-spark7162         enable spark7162 stuff],
+	[AC_DEFINE(ENABLE_SPARK7162, 1, [enable spark7162 stuff])])
+AM_CONDITIONAL(ENABLE_SPARK7162, test "$enable_spark7162" = "yes")
+if test "$enable_spark7162" = "yes"; then
+	AC_DEFINE(ENABLE_SPARK7162, 1, [enable spark stuff])
+fi
+
+AC_ARG_ENABLE(hs9510,
+	[  --enable-hs9510            enable hs9510 stuff],
+	[AC_DEFINE(ENABLE_HS9510, 1, [enable hs9510 stuff])])
+AM_CONDITIONAL(ENABLE_HS9510, test "$enable_hs9510" = "yes")
+if test "$enable_hs9510" = "yes"; then
+	AC_DEFINE(ENABLE_HS9510, 1, [enable hs9510 stuff])
+fi
+
+AC_ARG_ENABLE(hs8200,
+	[  --enable-hs8200            enable hs8200 stuff],
+	[AC_DEFINE(ENABLE_HS8200, 1, [enable hs8200 stuff])])
+AM_CONDITIONAL(ENABLE_HS8200, test "$enable_hs8200" = "yes")
+if test "$enable_hs8200" = "yes"; then
+	AC_DEFINE(ENABLE_HS8200, 1, [enable hs8200 stuff])
+fi
+
+AC_ARG_ENABLE(fs9000,
+	[  --enable-fs9000            enable fs9000 stuff],
+[AC_DEFINE(ENABLE_FS9000, 1, [enable fs9000 stuff])])
+
+AM_CONDITIONAL(ENABLE_FS9000, test "$enable_fs9000" = "yes")
+if test "$enable_fs9000" = "yes"; then
+	AC_DEFINE(ENABLE_FS9000, 1, [enable fs9000 stuff])
+fi
+
+AC_ARG_ENABLE(hs7110,
+	[  --enable-hs7110            enable hs7110 stuff],
+[AC_DEFINE(ENABLE_HS7110, 1, [enable hs7110 stuff])])
+
+AM_CONDITIONAL(ENABLE_HS7110, test "$enable_hs7110" = "yes")
+if test "$enable_hs7110" = "yes"; then
+	AC_DEFINE(ENABLE_HS7110, 1, [enable hs7110 stuff])
+fi
+
+AC_ARG_ENABLE(hs7119,
+	[  --enable-hs7119            enable hs7119 stuff],
+[AC_DEFINE(ENABLE_HS7119, 1, [enable hs7119 stuff])])
+
+AM_CONDITIONAL(ENABLE_HS7119, test "$enable_hs7119" = "yes")
+if test "$enable_hs7119" = "yes"; then
+	AC_DEFINE(ENABLE_HS7119, 1, [enable hs7119 stuff])
+fi
+
+AC_ARG_ENABLE(hs7420,
+	[  --enable-hs7420            enable hs7420 stuff],
+	[AC_DEFINE(ENABLE_HS7420, 1, [enable hs7420 stuff])])
+AM_CONDITIONAL(ENABLE_HS7420, test "$enable_hs7420" = "yes")
+if test "$enable_hs7420" = "yes"; then
+	AC_DEFINE(ENABLE_HS7420, 1, [enable hs7420 stuff])
+fi
+
+AC_ARG_ENABLE(hs7429,
+	[  --enable-hs7429            enable hs7429 stuff],
+	[AC_DEFINE(ENABLE_HS7429, 1, [enable hs7429 stuff])])
+AM_CONDITIONAL(ENABLE_HS7429, test "$enable_hs7429" = "yes")
+if test "$enable_hs7429" = "yes"; then
+	AC_DEFINE(ENABLE_HS7429, 1, [enable hs7429 stuff])
+fi
+
+AC_ARG_ENABLE(hs7810a,
+	[  --enable-hs7810a           enable hs7810a stuff],
+	[AC_DEFINE(ENABLE_HS7810A, 1, [enable hs7810a stuff])])
+AM_CONDITIONAL(ENABLE_HS7810A, test "$enable_hs7810a" = "yes")
+if test "$enable_hs7810a" = "yes"; then
+	AC_DEFINE(ENABLE_HS7810A, 1, [enable hs7810a stuff])
+fi
+
+AC_ARG_ENABLE(hs7819,
+	[  --enable-hs7819            enable hs7819 stuff],
+	[AC_DEFINE(ENABLE_HS7819, 1, [enable hs7819 stuff])])
+AM_CONDITIONAL(ENABLE_HS7819, test "$enable_hs7819" = "yes")
+if test "$enable_hs7819" = "yes"; then
+	AC_DEFINE(ENABLE_HS7819, 1, [enable hs7819 stuff])
+fi
+
+AC_ARG_ENABLE(ufs910,
+	[  --enable-ufs910            enable ufs910 stuff],
+	[AC_DEFINE(ENABLE_UFS910, 1, [enable ufs910 stuff])])
+AM_CONDITIONAL(ENABLE_UFS910, test "$enable_ufs910" = "yes")
+if test "$enable_ufs910" = "yes"; then
+	AC_DEFINE(ENABLE_UFS910, 1, [enable ufs910 stuff])
+fi
+
+AC_ARG_ENABLE(ufs910,
+	[  --enable-ufs910            enable ufs910 stuff],
+	[AC_DEFINE(ENABLE_UFS910, 1, [enable ufs910 stuff])])
+AM_CONDITIONAL(ENABLE_UFS910, test "$enable_ufs910" = "yes")
+if test "$enable_ufs910" = "yes"; then
+	AC_DEFINE(ENABLE_UFS910, 1, [enable ufs910 stuff])
+fi
+
+AC_ARG_ENABLE(ufs912,
+	[  --enable-ufs912            enable ufs912 stuff],
+	[AC_DEFINE(ENABLE_UFS912, 1, [enable ufs912 stuff])])
+AM_CONDITIONAL(ENABLE_UFS912, test "$enable_ufs912" = "yes")
+if test "$enable_ufs912" = "yes"; then
+	AC_DEFINE(ENABLE_UFS912, 1, [enable ufs912 stuff])
+fi
+
+AC_ARG_ENABLE(ufs913,
+	[  --enable-ufs913            enable ufs913 stuff],
+	[AC_DEFINE(ENABLE_UFS913, 1, [enable ufs913 stuff])])
+AM_CONDITIONAL(ENABLE_UFS913, test "$enable_ufs913" = "yes")
+if test "$enable_ufs913" = "yes"; then
+	AC_DEFINE(ENABLE_UFS913, 1, [enable ufs913 stuff])
+fi
+
+AC_ARG_ENABLE(ufs922,
+	[  --enable-ufs922            enable ufs922 stuff],
+	[AC_DEFINE(ENABLE_UFS922, 1, [enable ufs922 stuff])])
+AM_CONDITIONAL(ENABLE_UFS922, test "$enable_ufs922" = "yes")
+if test "$enable_ufs922" = "yes"; then
+	AC_DEFINE(ENABLE_UFS922, 1, [enable ufs922 stuff])
+fi
+
+AC_ARG_ENABLE(ufc960,
+	[  --enable-ufc960            enable ufc960 stuff],
+	[AC_DEFINE(ENABLE_UFC960, 1, [enable ufc960 stuff])])
+AM_CONDITIONAL(ENABLE_UFC960, test "$enable_ufc960" = "yes")
+if test "$enable_ufc960" = "yes"; then
+	AC_DEFINE(ENABLE_UFC960, 1, [enable ufc960 stuff])
+fi
+
+AC_ARG_ENABLE(adb_box,
+	[  --adb_box                  enable adb_box stuff],
+	[AC_DEFINE(ENABLE_ADB_BOX, 1, [enable adb_box stuff])])
+AM_CONDITIONAL(ENABLE_ADB_BOX, test "$enable_adb_box" = "yes")
+if test "$enable_adb_box" = "yes"; then
+	AC_DEFINE(ENABLE_ADB_BOX, 1, [enable adb_box stuff])
+fi
+
+AC_ARG_ENABLE(vitamin_hd5000,
+	[  --enable-vitamin_hd5000    enable vitamin_hd5000 stuff],
+	[AC_DEFINE(ENABLE_VITAMIN_HD5000, 1, [enable vitamin_hd5000 stuff])])
+AM_CONDITIONAL(ENABLE_VITAMIN_HD5000, test "$enable_vitamin_hd5000" = "yes")
+if test "$enable_vitamin_hd5000" = "yes"; then
+	AC_DEFINE(ENABLE_VITAMIN_HD5000, 1, [enable vitamin_hd5000 stuff])
+fi
+
+AC_ARG_ENABLE(hl101,
+	[  --enable-hl101             enable hl101 stuff],
+	[AC_DEFINE(ENABLE_HL101, 1, [enable hl101 stuff])])
+AM_CONDITIONAL(ENABLE_HL101, test "$enable_hl101" = "yes")
+if test "$enable_hl101" = "yes"; then
+	AC_DEFINE(ENABLE_HL101, 1, [enable hl101 stuff])
+fi
+
+AC_ARG_ENABLE(vip1_v1,
+	[  --enable-vip1_v1           enable vip1_v1 stuff],
+	[AC_DEFINE(ENABLE_VIP1_V1, 1, [enable vip1_v1 stuff])])
+AM_CONDITIONAL(ENABLE_VIP1_V1, test "$enable_vip1_v1" = "yes")
+if test "$enable_vip1_v1" = "yes"; then
+	AC_DEFINE(ENABLE_VIP1_V1, 1, [enable vip1_v1 stuff])
+fi
+
+AC_ARG_ENABLE(vip1_v2,
+	[  --enable-vip1_v2           enable vip1_v2 stuff],
+	[AC_DEFINE(ENABLE_VIP1_V2, 1, [enable vip1_v2 stuff])])
+AM_CONDITIONAL(ENABLE_VIP1_V2, test "$enable_vip1_v2" = "yes")
+if test "$enable_vip1_v2" = "yes"; then
+	AC_DEFINE(ENABLE_VIP1_V2, 1, [enable vip1_v2 stuff])
+fi
+
+AC_ARG_ENABLE(vip2,
+	[  --enable-vip2              enable vip2 stuff],
+	[AC_DEFINE(ENABLE_VIP2, 1, [enable vip2 stuff])])
+AM_CONDITIONAL(ENABLE_VIP2, test "$enable_vip2" = "yes")
+if test "$enable_vip2" = "yes"; then
+	AC_DEFINE(ENABLE_VIP2, 1, [enable vip2 stuff])
+fi
+
+AC_ARG_ENABLE(pace7241,
+	[  --enable-pace7241          enable pace7241 stuff],
+	[AC_DEFINE(ENABLE_PACE7241, 1, [enable pace7241 stuff])])
+AM_CONDITIONAL(ENABLE_PACE7241, test "$enable_pace7241" = "yes")
+if test "$enable_pace7241" = "yes"; then
+	AC_DEFINE(ENABLE_PACE7241, 1, [enable pace7241 stuff])
+fi
+
+AC_ARG_ENABLE(opt9600,
+	[  --enable-opt9600           enable opt9600 stuff],
+	[AC_DEFINE(ENABLE_OPT9600, 1, [enable opt9600 stuff])])
+AM_CONDITIONAL(ENABLE_OPT9600, test "$enable_opt9600" = "yes")
+if test "$enable_opt9600" = "yes"; then
+	AC_DEFINE(ENABLE_OPT9600, 1, [enable opt9600 stuff])
+fi
+
+AC_ARG_ENABLE(opt9600mini,
+	[  --enable-opt9600mini       enable opt9600mini stuff],
+	[AC_DEFINE(ENABLE_OPT9600MINI, 1, [enable opt9600mini stuff])])
+AM_CONDITIONAL(ENABLE_OPT9600MINI, test "$enable_opt9600mini" = "yes")
+if test "$enable_opt9600mini" = "yes"; then
+	AC_DEFINE(ENABLE_OPT9600MINI, 1, [enable opt9600mini stuff])
+fi
+
+AC_ARG_ENABLE(opt9600prima,
+	[  --enable-opt9600prima      enable opt9600prima stuff],
+	[AC_DEFINE(ENABLE_OPT9600PRIMA, 1, [enable opt9600prima stuff])])
+AM_CONDITIONAL(ENABLE_OPT9600PRIMA, test "$enable_opt9600prima" = "yes")
+if test "$enable_opt9600prima" = "yes"; then
+	AC_DEFINE(ENABLE_OPT9600PRIMA, 1, [enable opt9600prima stuff])
+fi
+
+AC_ARG_ENABLE(atemio520,
+	[  --enable-atemio520         enable atemio520 stuff],
+	[AC_DEFINE(ENABLE_ATEMIO520, 1, [enable atemio520 stuff])])
+AM_CONDITIONAL(ENABLE_ATEMIO520, test "$enable_atemio520" = "yes")
+if test "$enable_atemio520" = "yes"; then
+	AC_DEFINE(ENABLE_ATEMIO520, 1, [enable atemio520 stuff])
+fi
+
+AC_ARG_ENABLE(hchs8100,
+	[  --enable-hchs8100          enable hchs8100 stuff],
+	[AC_DEFINE(ENABLE_HCHS8100, 1, [enable hchs8100 stuff])])
+AM_CONDITIONAL(ENABLE_HCHS8100, test "$enable_hchs8100" = "yes")
+if test "$enable_hchs8100" = "yes"; then
+	AC_DEFINE(ENABLE_HCHS8100, 1, [enable hchs8100 stuff])
+fi
+
+AC_CHECK_LIB([udfread], [udfread_init])
 AC_CHECK_LIB([dl], [dlopen], [LIBDL_LIBS="-ldl"], [AC_MSG_ERROR([Could not find libdl])])
 AC_SUBST(LIBDL_LIBS)
 AC_CHECK_LIB([jpeg], [jpeg_set_defaults], [LIBJPEG_LIBS="-ljpeg"], [AC_MSG_ERROR([Could not find libjpeg])])
@@ -99,19 +434,23 @@ AC_SUBST(LIBJPEG_LIBS)
 AC_CHECK_LIB([ungif], [DGifOpen], [LIBGIF_LIBS="-lungif"], [AC_CHECK_LIB([gif], [DGifOpen], [LIBGIF_LIBS="-lgif"], [AC_MSG_ERROR([Could not find libgif or libungif])])])
 AC_SUBST(LIBGIF_LIBS)
 
+AC_ARG_WITH(crashlogemail,
+	[  --with-crashlogemail=crash log email address],
+	[CRASHLOGEMAIL="$withval"],[CRASHLOGEMAIL="the OpenPLi forum"])
+AC_SUBST(CRASHLOGEMAIL)
+AC_DEFINE_UNQUOTED(CRASH_EMAILADDR,"$CRASHLOGEMAIL",[crash log email address])
+
 AC_ARG_WITH(boxtype,
-	[  --with-boxtype=NAME box type [[none,dm7025,dm800...]]],
-	[BOXTYPE="$withval"],[BOXTYPE="dm800"])
+	[  --with-boxtype=NAME box type [[none,hs8200...]]],
+	[BOXTYPE="$withval"],[BOXTYPE="hs8200"])
 AC_SUBST(BOXTYPE)
 AC_DEFINE_UNQUOTED(BOXTYPE,"$BOXTYPE",[box type])
 
 AM_CONDITIONAL(DREAMBOX, test `echo "$BOXTYPE" | cut -b 1-2` == "dm")
-AM_CONDITIONAL(HAVE_TEMPFANCONTROL, test "$BOXTYPE" == dm8000 -o "$BOXTYPE" == dm800se -o "$BOXTYPE" == dm500hd)
+AM_CONDITIONAL(HAVE_TEMPFANCONTROL, test "$BOXTYPE" == adb_box -o "$BOXTYPE" == cuberevo -o "$BOXTYPE" == cuberevo-9500hd -o "$BOXTYPE" == ipbox99 -o "$BOXTYPE" == ipbox9900 -o "$BOXTYPE" == sagemcom88 -o "$BOXTYPE" == pace7241 -o "$BOXTYPE" == ufs922)
 if test `echo "$BOXTYPE" | cut -b 1-2` == "dm"; then
 	AC_DEFINE(DREAMBOX, 1, [Dreambox hardware])
-fi
-if test "$BOXTYPE" == "vusolo2" -o "$BOXTYPE" == "vuduo2" -o "$BOXTYPE" == "vusolose" -o "$BOXTYPE" == "vusolo4k" -o "$BOXTYPE" == "vuzero"; then
-	AC_DEFINE(VUPLUS_RC_WORKAROUND, 1, [workaround for problem with vuplus event/rc driver])
+	AC_DEFINE(KEY_PLAY_ACTUALLY_IS_KEY_PLAYPAUSE, 1,[define when rc sends a KEY_PLAY event for its KEY_PLAYPAUSE key])
 fi
 
 AC_ARG_WITH(textlcd,
@@ -124,30 +463,12 @@ if test x"$withtextlcd" != xno ; then
 fi
 AM_CONDITIONAL(HAVE_TEXTLCD, test x"$withtextlcd" != xno)
 
-AC_ARG_WITH(graphlcd,
-	AC_HELP_STRING([--with-graphlcd], [use GraphLCD color display, yes or no]),
-	[[withgraphlcd=$withval]],
-	[[withgraphlcd=no]]
+AC_ARG_WITH(7segment,
+	AC_HELP_STRING([--with-7segment], [use 7 segment lcd, yes or no]),
+	[[TEXTSKIN="7segment"]],
+	[[TEXTSKIN="default"]]
 )
-if test x"$withgraphlcd" != xno ; then
-	AC_DEFINE(HAVE_GRAPHLCD, 1,[Define when using a GraphLCD color display device])
-fi
-AM_CONDITIONAL(HAVE_GRAPHLCD, test x"$withgraphlcd" != xno)
-
-AC_ARG_WITH(lcd,
-	AC_HELP_STRING([--with-lcd], [use LCD display, yes or no]),
-	[[withlcd=$withval]],
-	[[withlcd=no]]
-)
-if ! test x"$withlcd" != xno ; then
-	AC_DEFINE(NO_LCD, 1,[Define when not using a LCD display device])
-fi
-AM_CONDITIONAL(NO_LCD, test x"$withlcd" != xno)
-if test `echo "$BOXTYPE" | cut -b 1-2` == "vu"; then
-	AC_DEFINE(FORCE_NO_BLENDING_ACCELERATION, 1,[define when the framebuffer acceleration does not have alphablending support, though the autodetection might indicate that it does])
-	AC_DEFINE(FORCE_NO_FILL_ACCELERATION, 1,[define when the framebuffer acceleration does not have fill support])
-	AC_DEFINE(FORCE_ADVANCED_REMOTE, 1,[define to fixup the input device identification when the remote control is actually an 'advanced' remote (with play/forward/rewind keys)])
-fi
+AC_SUBST(TEXTSKIN)
 
 AC_ARG_WITH(libsdl,
 	AS_HELP_STRING([--with-libsdl],[use libsdl, yes or no]),
@@ -170,7 +491,6 @@ AC_ARG_WITH(debug,
 	AS_HELP_STRING([--without-debug],[disable debugging code]),
 	[with_debug="$withval"],[with_debug="yes"])
 if test "$with_debug" = "yes"; then
-	DEBUG_CFLAGS="-ggdb3"
 	AC_DEFINE([DEBUG],[1],[Define to 1 to enable debugging code])
 fi
 
@@ -188,8 +508,9 @@ if test "$with_po" = "yes"; then
 	AC_PATH_PROG(MSGINIT, msginit)
 	AC_PATH_PROG(MSGMERGE, msgmerge)
 	AC_PATH_PROG(MSGUNIQ, msguniq)
+	AC_PATH_PROG(MSGATTRIB, msgattrib)
 	AC_PATH_PROG(XGETTEXT, xgettext)
-	if test -z "$MSGINIT" -o -z "$MSGMERGE" -o -z "$MSGUNIQ" -o -z "$XGETTEXT"; then
+	if test -z "$MSGINIT" -o -z "$MSGMERGE" -o -z "$MSGUNIQ" -o -z "$MSGATTRIB" -o -z "$XGETTEXT"; then
 		AC_MSG_ERROR([Could not find required gettext tools])
 	fi
 fi
@@ -197,8 +518,8 @@ AM_CONDITIONAL(UPDATE_PO, test "$with_po" = "yes")
 
 AC_ARG_WITH(alsa,
 	AC_HELP_STRING([--with-alsa], [Enable ALSA support]),
-	[[with_alse=$withval]],
-	[[with_alse=no]]
+	[[with_alsa=$withval]],
+	[[with_alsa=no]]
 )
 if test x"$with_alsa" == xyes ; then
 	AC_DEFINE(HAVE_ALSA, 1,[Enables ALSA support])
@@ -241,13 +562,97 @@ if test x"$with_lcddev" != xno ; then
 	AC_DEFINE_UNQUOTED(LCD_DEV, "$withval", [Defines which device to use for lcd (e.g. /dev/fb1)])
 fi
 
-ENIGMA2_CFLAGS="-fno-rtti -fno-exceptions"
+AC_ARG_WITH(alphablendingacceleration,
+	AC_HELP_STRING([--with-alphablendingacceleration=never/always/auto], [alphablending acceleration strategy: never accelerate / always accelerate / automatically decide when to accelerate (default)]),
+	[[with_alphablendingacceleration=$withval]],
+	[[with_alphablendingacceleration=auto]]
+)
+if test x"$with_alphablendingacceleration" = xnever ; then
+	AC_DEFINE_UNQUOTED(FORCE_NO_BLENDING_ACCELERATION, 1, [Do not attempt to accelerate alphablending blits])
+elif test x"$with_alphablendingacceleration" = xalways ; then
+	AC_DEFINE_UNQUOTED(FORCE_ALPHABLENDING_ACCELERATION, 1, [Accelerate alphablending blits])
+fi
+
+AC_ARG_WITH(graphlcd,
+	AC_HELP_STRING([--with-graphlcd], [use GraphLCD color display, yes or no]),
+	[[withgraphlcd=$withval]],
+	[[withgraphlcd=no]]
+)
+if test x"$withgraphlcd" != xno ; then
+	AC_DEFINE(HAVE_GRAPHLCD, 1,[Define when using a GraphLCD color display device])
+fi
+AM_CONDITIONAL(HAVE_GRAPHLCD, test x"$withgraphlcd" != xno)
+
+AC_ARG_WITH(lcd4linux,
+	AC_HELP_STRING([--with-lcd4linux], [use LCD4Linux color display, yes or no]),
+	[[withlcd4linux=$withval]],
+	[[withlcd4linux=no]]
+)
+if test x"$withlcd4linux" != xno ; then
+	AC_DEFINE(HAVE_LCD4LINUX, 1,[Define when using a LCD4Linux color display device])
+fi
+AM_CONDITIONAL(HAVE_LCD4LINUX, test x"$withlcd4linux" != xno)
+
+AC_ARG_WITH(accelerationthreshold,
+	AC_HELP_STRING([--with-accelerationthreshold=n], [use acceleration threshold of n bytes]),
+	[[with_accelerationthreshold=$withval]],
+	[[with_accelerationthreshold=48000]]
+)
+AC_DEFINE_UNQUOTED(GFX_SURFACE_ACCELERATION_THRESHOLD, $with_accelerationthreshold,[Configure threshold for accelerated surfaces (in bytes)])
+
+AC_ARG_WITH(fillaccelerationthreshold,
+	AC_HELP_STRING([--with-fillaccelerationthreshold=n], [use fill acceleration threshold of n bytes]),
+	[[with_fillaccelerationthreshold=$withval]],
+	[[with_fillaccelerationthreshold=80000]]
+)
+AC_DEFINE_UNQUOTED(GFX_SURFACE_FILL_ACCELERATION_THRESHOLD, $with_fillaccelerationthreshold,[Configure threshold for accelerated fill operations (in bytes)])
+
+AC_ARG_WITH(blitaccelerationthreshold,
+	AC_HELP_STRING([--with-blitaccelerationthreshold=n], [use blit acceleration threshold of n bytes]),
+	[[with_blitaccelerationthreshold=$withval]],
+	[[with_blitaccelerationthreshold=0]]
+)
+AC_DEFINE_UNQUOTED(GFX_SURFACE_BLIT_ACCELERATION_THRESHOLD, $with_blitaccelerationthreshold,[Configure threshold for accelerated blit operations (in bytes)])
+
+AC_ARG_WITH(accelerationaccumulation,
+	AC_HELP_STRING([--with-accelerationaccumulation], [accumulate blit/fill acceleration operations]),
+	[[with_accelerationaccumulation=$withval]],
+	[[with_accelerationaccumulation=no]]
+)
+if test x"$with_accelerationaccumulation" = xyes ; then
+	AC_DEFINE(SUPPORT_ACCUMULATED_ACCELERATION_OPERATIONS, 1,[Accumulate blit/fill acceleration operations])
+fi
+
+AC_CHECK_HEADERS([sys/klog.h])
+AC_CHECK_FUNCS([klogctl])
+
+AC_CHECK_HEADERS([shadow.h])
+AC_CHECK_LIB([crypt], [crypt], [BASE_LIBS+=" -lcrypt"], [AC_MSG_ERROR([Could not find crypt])])
+AC_CHECK_LIB([rt], [clock_gettime], [BASE_LIBS+=" -lrt"], [AC_MSG_ERROR([Could not find rt])])
+
+ENIGMA2_CFLAGS="-fno-rtti -fno-exceptions -rdynamic -funwind-tables"
 AC_SUBST(ENIGMA2_CFLAGS)
-AC_SUBST(SIGC_MAJORMINOR)
+
+AX_CXX_COMPILE_STDCXX_11([ext],[mandatory])
+
+AX_CHECK_COMPILE_FLAG([-Wattribute-alias], [CXXFLAGS="$CXXFLAGS -Wattribute-alias"])
+AX_CHECK_COMPILE_FLAG([-Wattribute-alias=1], [CXXFLAGS="$CXXFLAGS -Wattribute-alias=1"])
 
 CPPFLAGS="$CPPFLAGS $PYTHON_CPPFLAGS"
-CFLAGS="$CFLAGS $DEBUG_CFLAGS -Wall"
-CXXFLAGS="$CXXFLAGS $DEBUG_CFLAGS -Wall $BASE_CFLAGS $ENIGMA2_CFLAGS $PTHREAD_CFLAGS $OPENMP_CFLAGS $ALSA_CFLAGS"
+CFLAGS="$CFLAGS -Wall"
+CXXFLAGS="$CXXFLAGS -Wall -Wextra \
+	-Wformat=2 -Wformat-nonliteral -Wformat-security \
+	-Wtrampolines \
+	-Wswitch \
+	-Wunused-but-set-parameter -Wuninitialized \
+	-Woverlength-strings \
+	-Wunsafe-loop-optimizations -Wpointer-arith \
+	-Wfloat-equal -Wlogical-op \
+	-Wno-error=ignored-qualifiers \
+	-Wno-error=shadow -Wno-error=cast-qual \
+	-Wno-error=aggregate-return -Wno-error=missing-field-initializers \
+	-Wno-error=packed -Wno-error=vla -Wno-error=clobbered -Wno-error=unused-parameter \
+	$BASE_CFLAGS $ENIGMA2_CFLAGS $PTHREAD_CFLAGS $OPENMP_CFLAGS $ALSA_CFLAGS"
 
 AC_CONFIG_FILES([
 Makefile
