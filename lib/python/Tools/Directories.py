@@ -20,6 +20,7 @@ SCOPE_CURRENT_SKIN = 12
 SCOPE_METADIR = 16
 SCOPE_CURRENT_PLUGIN = 17
 SCOPE_ACTIVE_SKIN = 18
+SCOPE_GOSLANGUAGE = 19 #GOS
 
 PATH_CREATE = 0
 PATH_DONTCREATE = 1
@@ -32,6 +33,7 @@ defaultPaths = {
 		SCOPE_PLUGINS: (eEnv.resolve("${libdir}/enigma2/python/Plugins/"), PATH_CREATE),
 
 		SCOPE_LANGUAGE: (eEnv.resolve("${datadir}/enigma2/po/"), PATH_DONTCREATE),
+	        SCOPE_GOSLANGUAGE: ("/usr/share/locale/", PATH_DONTCREATE),
 
 		SCOPE_SKIN: (eEnv.resolve("${datadir}/enigma2/"), PATH_DONTCREATE),
 		SCOPE_SKIN_IMAGE: (eEnv.resolve("${datadir}/enigma2/"), PATH_DONTCREATE),
