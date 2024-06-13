@@ -4,6 +4,8 @@ dist_pkgdata_DATA = \
 	encoding.conf \
 	keymap.xml \
 	menu.xml \
+        menu_d.xml \
+        menu_nd.xml \
 	prev.png \
 	radio.mvi \
 	black.mvi \
