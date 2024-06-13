@@ -7,7 +7,7 @@ class HardwareInfo:
 	device_model = None
 	device_version = ""
 	device_revision = ""
-	device_hdmi = True
+	device_hdmi = False
 
 	def __init__(self):
 		global hw_info
@@ -17,18 +17,16 @@ class HardwareInfo:
 
 		print "[HardwareInfo] Scanning hardware info"
 		# Version
-		# Disable on spark because there is only a /proc/stb/info/model
-		#try:
-			#self.device_version = open("/proc/stb/info/version").read().strip()
-		#except:
-			#pass
+		try:
+			self.device_version = open("/proc/stb/info/version").read().strip()
+		except:
+			pass
 
 		# Revision
-		# Disable on spark because there is only a /proc/stb/info/model
-		#try:
-			#self.device_revision = open("/proc/stb/info/board_revision").read().strip()
-		#except:
-			#pass
+		try:
+			self.device_revision = open("/proc/stb/info/board_revision").read().strip()
+		except:
+			pass
 
 		# Name ... bit odd, but history prevails
 		try:
@@ -37,27 +35,15 @@ class HardwareInfo:
 			pass
 
 		# Model
-		# Disable on spark because there is only a /proc/stb/info/model
-		#for line in open((resolveFilename(SCOPE_SKIN, 'hw_info/hw_info.cfg')), 'r'):
-			#if not line.startswith('#') and not line.isspace():
-				#l = line.strip().replace('\t', ' ')
-				#if ' ' in l:
-					#infoFname, prefix = l.split()
-				#else:
-					#infoFname = l
-					#prefix = ""
-				#try:
-					#self.device_model = prefix + open("/proc/stb/info/" + infoFname).read().strip()
-					#break
-				#except:
-					#pass
+		try:
+			self.device_model = prefix + open("/proc/stb/info/" + infoFname).read().strip()
+		except:
+			pass
 
 		self.device_model = self.device_model or self.device_name
 
 		# only some early DMM boxes do not have HDMI hardware
-		# Disable on spark
-		#self.device_hdmi =  self.device_model not in ("dm7025", "dm800", "dm8000")
-					#(self.device_name == 'dm8000' and self.device_version != None))
+		self.device_hdmi =  self.device_model not in ("dm7025", "dm800", "dm8000")
 
 		print "Detected: " + self.get_device_string()
 
