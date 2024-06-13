@@ -52,7 +52,7 @@ class About(Screen):
         self['FPVersion'] = StaticText(fp_version)
         self['TunerHeader'] = StaticText(_('Detected NIMs:'))
         AboutText += '\n' + _('Detected NIMs:') + '\n'
-        nims = nimmanager.nimList(showFBCTuners=False)
+        nims = nimmanager.nimList()
         for count in range(len(nims)):
             if count < 4:
                 self['Tuner' + str(count)] = StaticText(nims[count])
